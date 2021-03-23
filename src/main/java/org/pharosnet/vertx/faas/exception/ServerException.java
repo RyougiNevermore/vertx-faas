@@ -17,23 +17,44 @@ public class ServerException extends ServiceException {
         return Future.failedFuture(new ServerException(reason));
     }
 
+    public static <T> AsyncResult<T> fail(int statusCode, String reason) {
+        return Future.failedFuture(new ServerException(statusCode, reason));
+    }
+
+
     public static <T> AsyncResult<T> fail(String reason, Throwable throwable) {
-        return Future.failedFuture(new ServerException(throwable));
+        return Future.failedFuture(new ServerException(reason, throwable));
+    }
+
+    public static <T> AsyncResult<T> fail(int statusCode, String reason, Throwable throwable) {
+        return Future.failedFuture(new ServerException(statusCode, reason, throwable));
     }
 
     public ServerException(Throwable throwable) {
-        super(code, message);
+        this(code, throwable);
+    }
+
+    public ServerException(int statusCode, Throwable throwable) {
+        super(statusCode, message);
         super.getDebugInfo().put("message", throwable.getMessage());
         super.getDebugInfo().put("cause", throwable);
     }
 
     public ServerException(String reason) {
-        super(code, message);
+        this(code, reason);
+    }
+
+    public ServerException(int statusCode, String reason) {
+        super(statusCode, message);
         super.getDebugInfo().put("message", reason);
     }
 
     public ServerException(String reason, Throwable throwable) {
-        super(code, message);
+        this(code, reason, throwable);
+    }
+
+    public ServerException(int statusCode, String reason, Throwable throwable) {
+        super(statusCode, message);
         super.getDebugInfo().put("message", reason);
         super.getDebugInfo().put("cause", throwable);
     }

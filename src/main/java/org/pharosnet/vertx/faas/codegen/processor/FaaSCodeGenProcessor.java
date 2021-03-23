@@ -67,6 +67,7 @@ public class FaaSCodeGenProcessor extends AbstractProcessor {
             return moduleFnMap;
         }
         for (Element moduleElement : moduleElements) {
+            String packageName = elementUtils.getPackageOf(moduleElement).getQualifiedName().toString();
             ModuleGen moduleGen = moduleElement.getAnnotation(ModuleGen.class);
             List<Element> fnElements = new ArrayList<>();
             List<? extends Element> classElements = elementUtils.getPackageOf(moduleElement).getEnclosedElements();
@@ -82,8 +83,8 @@ public class FaaSCodeGenProcessor extends AbstractProcessor {
             }
 
             try {
-                new ModuleGenerator(this.messager, this.elementUtils, this.filer).generate(moduleGen, fnElements);
-            } catch (Exception exception) {
+                new ModuleGenerator(this.messager, this.elementUtils, this.filer).generate(packageName, moduleGen, fnElements);
+            } catch (Throwable exception) {
                 messager.printMessage(Diagnostic.Kind.ERROR, String.format("生成 %s:%s 模块的函数失败。", moduleGen.groupPackage(), moduleGen.name()));
                 messager.printMessage(Diagnostic.Kind.ERROR, exception.getMessage());
                 throw new RuntimeException(exception);

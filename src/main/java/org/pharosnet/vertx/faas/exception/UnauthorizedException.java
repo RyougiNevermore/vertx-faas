@@ -13,17 +13,33 @@ public class UnauthorizedException extends ServiceException {
         return Future.failedFuture(new UnauthorizedException(reason));
     }
 
+    public static <T> AsyncResult<T> fail(int statusCode, String reason) {
+        return Future.failedFuture(new UnauthorizedException(statusCode, reason));
+    }
+
     public static <T> AsyncResult<T> fail() {
         return Future.failedFuture(new UnauthorizedException());
     }
 
+    public static <T> AsyncResult<T> fail(int statusCode) {
+        return Future.failedFuture(new UnauthorizedException(statusCode));
+    }
+
     public UnauthorizedException(String reason) {
-        super(code, message);
+        this(code, reason);
+    }
+
+    public UnauthorizedException(int statusCode, String reason) {
+        super(statusCode, message);
         super.getDebugInfo().put("reason", reason);
     }
 
+    public UnauthorizedException(int statusCode) {
+        super(statusCode, message);
+    }
+
     public UnauthorizedException() {
-        super(code, message);
+        this(code);
     }
 
 }

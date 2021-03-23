@@ -15,8 +15,16 @@ public class ParameterInvalidException extends ServiceException {
         return Future.failedFuture(new ParameterInvalidException(messages));
     }
 
+    public static <T> AsyncResult<T> fail(int statusCode, List<String> messages) {
+        return Future.failedFuture(new ParameterInvalidException(statusCode, messages));
+    }
+
     public ParameterInvalidException(List<String> messages) {
-        super(code, message);
+        this(code, messages);
+    }
+
+    public ParameterInvalidException(int statusCode, List<String> messages) {
+        super(statusCode, message);
         super.getDebugInfo().put("invalidParameters", messages);
     }
 

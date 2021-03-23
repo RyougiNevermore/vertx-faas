@@ -135,7 +135,6 @@ public class Http {
         }
 
         Router router = Router.router(vertx);
-        routerbuilder.build(vertx, router);
         routerbuilder.buildNotFoundHandler(router);
         routerbuilder.buildFailureHandler(router);
         routerbuilder.buildOpenApi(router, config.getOpenapi(), basePackage);
@@ -148,6 +147,7 @@ public class Http {
                 return promise.future();
             }
         }
+        routerbuilder.build(vertx, router);
         FnRouterBuilder fnRouterBuilder = new FnRouterBuilder(basePackage);
         fnRouterBuilder.build(vertx, router);
 

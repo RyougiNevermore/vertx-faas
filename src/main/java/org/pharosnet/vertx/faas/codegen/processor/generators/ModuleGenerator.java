@@ -22,14 +22,21 @@ public class ModuleGenerator {
     private Filer filer;
 
 
-    public void generate(ModuleGen moduleGen, List<Element> fnElements) throws Exception {
+    public void generate(String pkg, ModuleGen moduleGen, List<Element> fnElements) throws Exception {
         for (Element element : fnElements) {
-            FnGenerator fnGenerator = new FnGenerator(this.messager, this.elementUtils, (TypeElement) element);
+            FnGenerator fnGenerator = new FnGenerator(this.messager, this.elementUtils, (TypeElement) element, moduleGen);
             fnGenerator.generate(this.filer);
         }
         // generate verticle
-
+        VerticleGenerator verticleGenerator = new VerticleGenerator(this.messager, this.elementUtils, this.filer);
+        verticleGenerator.generate(pkg, moduleGen);
         // generate deployment
+        DeploymentGenerator deploymentGenerator = new DeploymentGenerator(this.messager, this.elementUtils, this.filer);
+        deploymentGenerator.generate(pkg, moduleGen);
+
+        // generate MessageConsumerRegister
+        MessageConsumerRegisterGenerator messageConsumerRegisterGenerator = new MessageConsumerRegisterGenerator(this.messager, this.elementUtils, this.filer);
+        messageConsumerRegisterGenerator.generate(pkg, moduleGen, fnElements);
 
     }
 

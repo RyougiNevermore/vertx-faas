@@ -3,6 +3,7 @@ package org.pharosnet.vertx.faas.codegen.processor.generators;
 
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
+import io.vertx.codegen.annotations.ModuleGen;
 import org.pharosnet.vertx.faas.codegen.annotation.Fn;
 
 import javax.annotation.processing.Filer;
@@ -16,9 +17,9 @@ import java.util.Set;
 
 public class FnGenerator {
 
-    public FnGenerator(Messager messager, Elements elementUtils, TypeElement type) throws Exception {
+    public FnGenerator(Messager messager, Elements elementUtils, TypeElement type, ModuleGen moduleGen) throws Exception {
         this.messager = messager;
-        this.load(elementUtils, type);
+        this.load(elementUtils, type, moduleGen);
     }
 
     private final Messager messager;
@@ -27,11 +28,12 @@ public class FnGenerator {
     private TypeMirror typeMirror;
 
 
-    public void load(Elements elementUtils, TypeElement typeElement) throws Exception {
+    public void load(Elements elementUtils, TypeElement typeElement, ModuleGen moduleGen) throws Exception {
         String pkg = elementUtils.getPackageOf(typeElement).getQualifiedName().toString();
         String name = typeElement.getSimpleName().toString();
         this.typeMirror = typeElement.asType();
         this.fnUnit = new FnUnit();
+        this.fnUnit.setModuleName(moduleGen.name());
         this.fnUnit.setFn(typeElement.getAnnotation(Fn.class));
         this.fnUnit.setClassName(name);
         this.fnUnit.setPackageName(pkg);

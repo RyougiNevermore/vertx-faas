@@ -70,14 +70,12 @@ public class FnRouterGenerator {
                 .addModifiers(Modifier.PUBLIC)
                 .addParameter(ClassName.get(Router.class), "router")
                 .returns(ClassName.VOID);
-        buildMethod.addCode(String.format("router.%s(\"%s\")\n", fnUnit.getFn().method().toString().toLowerCase(), fnUnit.getFn().path()));
-        if (fnUnit.getFn().method().equals(HttpMethod.POST) || fnUnit.getFn().method().equals(HttpMethod.PUT) || fnUnit.getFn().method().equals(HttpMethod.PATCH)) {
-            buildMethod.addCode(String.format("\t\t.handler($T.create().setBodyLimit(%d))\n", fnUnit.getFn().bodyLimit()), ClassName.get("io.vertx.ext.web.handler", "BodyHandler"));
+        String path = Optional.of(fnUnit.getFn().path()).orElse("").trim();
+        if (path.length() == 0) {
+            path = String.format("/%s/%s", fnUnit.getModuleName(), fnClassName);
         }
-        buildMethod.addCode(String.format("\t\t.handler($T.create(%d))\n", fnUnit.getFn().timeout()), ClassName.get("io.vertx.ext.web.handler", "TimeoutHandler"));
-        if (fnUnit.getFn().latency()) {
-            buildMethod.addCode("\t\t.handler($T.create())\n", ClassName.get("io.vertx.ext.web.handler", "ResponseContentTypeHandler"));
-        }
+        buildMethod.addCode(String.format("router.%s(\"%s\")\n", fnUnit.getFn().method().toString().toLowerCase(), path));
+
         String produces = Optional.of(fnUnit.getFn().produces()).orElse("").trim().toLowerCase();
         if (produces.length() > 0) {
             buildMethod.addCode(String.format("\t\t.produces(\"%s\")\n", produces));
@@ -86,8 +84,29 @@ public class FnRouterGenerator {
         if (consumes.length() > 0) {
             buildMethod.addCode(String.format("\t\t.consumes(\"%s\")\n", consumes));
         }
-        buildMethod.addCode("\t\t.handler(this::handle);\n");
+        if (fnUnit.getFn().method().equals(HttpMethod.POST) || fnUnit.getFn().method().equals(HttpMethod.PUT) || fnUnit.getFn().method().equals(HttpMethod.PATCH)) {
+            buildMethod.addCode(String.format("\t\t.handler($T.create().setBodyLimit(%d))\n", fnUnit.getFn().bodyLimit()), ClassName.get("io.vertx.ext.web.handler", "BodyHandler"));
+        }
+        buildMethod.addCode(String.format("\t\t.handler($T.create(%d))\n", fnUnit.getFn().timeout()), ClassName.get("io.vertx.ext.web.handler", "TimeoutHandler"));
+        if (fnUnit.getFn().latency()) {
+            buildMethod.addCode("\t\t.handler($T.create())\n", ClassName.get("io.vertx.ext.web.handler", "ResponseContentTypeHandler"));
+        }
 
+        if (fnUnit.getFn().beforeHandleInterceptors().length > 0) {
+            for (String interceptorClassName : fnUnit.getFn().beforeHandleInterceptors()) {
+                ClassName interceptor = ClassName.bestGuess(interceptorClassName);
+                buildMethod.addCode("\t\t.handler(new $T(vertx))\n", interceptor);
+            }
+        }
+        buildMethod.addCode("\t\t.handler(this::handle)\n");
+        if (fnUnit.getFn().afterHandleInterceptors().length > 0) {
+            for (String interceptorClassName : fnUnit.getFn().afterHandleInterceptors()) {
+                ClassName interceptor = ClassName.bestGuess(interceptorClassName);
+                buildMethod.addCode("\t\t.handler(new $T(vertx))\n", interceptor);
+            }
+        }
+
+        buildMethod.addCode("\t\t.handler(ctx -> ctx.response().end());\n");
         // handle()
         MethodSpec.Builder handleMethod = MethodSpec.methodBuilder("handle")
                 .addModifiers(Modifier.PRIVATE)
@@ -129,7 +148,6 @@ public class FnRouterGenerator {
                 } else {
                     throw new RuntimeException(String.format("%s.%s 中的参数 %s 必须是String或List<String>", pkg, fnClassName, paramName));
                 }
-//                handleMethod.addStatement(String.format("$T %s = $T.routingContext.pathParam(\"%s\")", paramName, pathParamKey), parameter.asType());
                 continue;
             }
             RequestBody requestBody = parameter.getAnnotation(RequestBody.class);
@@ -154,15 +172,15 @@ public class FnRouterGenerator {
         handleMethod.addCode("\t\t} catch (Throwable throwable) {\n");
         handleMethod.addCode("\t\t\troutingContext.response().setStatusMessage(\"bad code\"); \n");
         handleMethod.addCode("\t\t\troutingContext.response().putHeader(\"x-request-id\", context.getId()); \n");
-        handleMethod.addCode("\t\t\troutingContext.fail(555, throwable); \n");
+        handleMethod.addCode("\t\t\troutingContext.fail(throwable); \n");
         handleMethod.addCode("\t\t\treturn; \n");
         handleMethod.addCode("\t\t}\n");
-        handleMethod.addCode("\t\tlog.debug(\"succeed. {}\", result);\n");
         handleMethod.addCode("\t\troutingContext.response()\n");
         handleMethod.addCode("\t\t\t\t.setStatusCode(200)\n");
         handleMethod.addCode("\t\t\t\t.setChunked(true)\n");
         handleMethod.addCode("\t\t\t\t.putHeader(\"x-request-id\", context.getId())\n");
-        handleMethod.addCode("\t\t.end(result, \"UTF-8\"); \n");
+        handleMethod.addCode("\t\t\t\t.write(result, \"UTF-8\"); \n");
+        handleMethod.addCode("\t\troutingContext.next(); \n");
         handleMethod.addCode("\t})\n");
         handleMethod.addCode("\t.onFailure(e -> {\n");
         handleMethod.addCode("\t\troutingContext.response().putHeader(\"x-request-id\", context.getId()); \n");

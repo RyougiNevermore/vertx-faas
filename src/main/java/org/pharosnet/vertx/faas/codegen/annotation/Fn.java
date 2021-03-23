@@ -12,10 +12,9 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface Fn {
 
-    // operator id = ClassName
-    HttpMethod method();
+    HttpMethod method() default HttpMethod.POST;
 
-    String path();
+    String path() default "";
 
     String description() default "";
 
@@ -34,5 +33,7 @@ public @interface Fn {
     String[] tags() default {};
 
     String implementClassFullName();
+    String[] beforeHandleInterceptors() default {};
+    String[] afterHandleInterceptors() default {};
 
 }

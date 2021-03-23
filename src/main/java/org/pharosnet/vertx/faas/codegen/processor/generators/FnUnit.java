@@ -15,6 +15,8 @@ public class FnUnit {
         this.parameters = new ArrayList<>();
     }
 
+    private String moduleName;
+
     private Fn fn;
 
     private String className;
@@ -26,6 +28,14 @@ public class FnUnit {
     private TypeName returnElementClass;
 
     private List<VariableElement> parameters;
+
+    public String getModuleName() {
+        return moduleName;
+    }
+
+    public void setModuleName(String moduleName) {
+        this.moduleName = moduleName;
+    }
 
     public Fn getFn() {
         return fn;
