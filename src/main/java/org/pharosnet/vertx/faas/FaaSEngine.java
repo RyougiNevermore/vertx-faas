@@ -5,6 +5,8 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import io.vertx.core.*;
 import io.vertx.core.json.jackson.DatabindCodec;
+import io.vertx.core.spi.cluster.ClusterManager;
+import io.vertx.spi.cluster.hazelcast.HazelcastClusterManager;
 import org.pharosnet.vertx.faas.codegen.annotation.FnDeployment;
 import org.pharosnet.vertx.faas.commons.ClassUtils;
 import org.pharosnet.vertx.faas.component.ComponentDeployment;
@@ -27,33 +29,9 @@ public class FaaSEngine {
 
     public FaaSEngine() {
         this.init();
-
-        VertxOptions vertxOptions = new VertxOptions();
-
-        boolean nativeTransported = Optional.ofNullable(System.getenv("FAAS_NATIVE")).orElse("false").strip().equalsIgnoreCase("true");
-        if (nativeTransported) {
-            if (log.isDebugEnabled()) {
-                log.debug("set prefer native transport true");
-            }
-            vertxOptions.setPreferNativeTransport(true);
-        }
-
-        Integer eventLoops = Optional.ofNullable(Integer.getInteger(Optional.ofNullable(System.getenv("FAAS_EVENT_LOOP")).orElse("0").strip())).orElse(0);
-
-        if (eventLoops > 0) {
-            if (log.isDebugEnabled()) {
-                log.debug("set event loop pool size be {}", eventLoops);
-            }
-            vertxOptions.setEventLoopPoolSize(eventLoops);
-        }
-
-        this.vertx = Vertx.vertx(vertxOptions);
-        if (log.isDebugEnabled()) {
-            log.debug("native transport: {}", vertx.isNativeTransportEnabled());
-        }
     }
 
-    private final Vertx vertx;
+    private Vertx vertx;
     private String basePackage;
 
     private List<ComponentDeployment> deployments;
@@ -64,6 +42,8 @@ public class FaaSEngine {
 
     protected void init() {
         System.setProperty("vertx.logger-delegate-factory-class-name", "io.vertx.core.logging.SLF4JLogDelegateFactory");
+        System.setProperty("hazelcast.logging.type", "slf4j");
+
         Validators.init();
         DatabindCodec.mapper()
                 .registerModule(new ParameterNamesModule())
@@ -133,34 +113,95 @@ public class FaaSEngine {
         return this;
     }
 
+    private Future<Void> createVertx() {
+        Promise<Void> promise = Promise.promise();
+
+        VertxOptions vertxOptions = new VertxOptions();
+
+        boolean nativeTransported = Optional.ofNullable(System.getenv("FAAS_NATIVE")).orElse("false").strip().equalsIgnoreCase("true");
+        if (nativeTransported) {
+            if (log.isDebugEnabled()) {
+                log.debug("set prefer native transport true");
+            }
+            vertxOptions.setPreferNativeTransport(true);
+        }
+
+        Integer eventLoops = Optional.ofNullable(Integer.getInteger(Optional.ofNullable(System.getenv("FAAS_EVENT_LOOP")).orElse("0").strip())).orElse(0);
+
+        if (eventLoops > 0) {
+            if (log.isDebugEnabled()) {
+                log.debug("set event loop pool size be {}", eventLoops);
+            }
+            vertxOptions.setEventLoopPoolSize(eventLoops);
+        }
+
+        boolean clusterEnabled = Optional.ofNullable(System.getenv("FAAS_CLUSTER")).orElse("false").trim().equalsIgnoreCase("true");
+        if (clusterEnabled) {
+            String clusterConfigPath = Optional.ofNullable(System.getenv("FAAS_CLUSTER_CONFIG")).orElse("").trim();
+            if (clusterConfigPath.length() == 0) {
+                promise.fail("System env named FAAS_CLUSTER_CONFIG is empty.");
+                return promise.future();
+            }
+            System.setProperty("vertx.hazelcast.config", clusterConfigPath);
+            ClusterManager clusterManager = new HazelcastClusterManager();
+            vertxOptions.setClusterManager(clusterManager);
+
+            Vertx.clusteredVertx(vertxOptions, r -> {
+                if (r.succeeded()) {
+                    this.vertx = r.result();
+                    promise.complete();
+                } else {
+                    promise.fail(new Exception("创建Cluster失败！", r.cause()));
+                }
+            });
+        } else {
+            this.vertx = Vertx.vertx(vertxOptions);
+            promise.complete();
+        }
+
+        return promise.future();
+    }
+
     public Future<Future<Void>> start() {
         return this.start(new DefaultHttpRouter());
     }
 
     public Future<Future<Void>> start(AbstractHttpRouter router) {
         Promise<Future<Void>> promise = Promise.promise();
-        FaaSConfig.read(vertx)
-                .compose(config -> {
-                    List<Future> deploymentFutures = new ArrayList<>();
-                    if (this.deployments != null && !this.deployments.isEmpty()) {
-                        deployments.forEach(deployment -> deploymentFutures.add(deployment.deploy(this.vertx, config)));
-                    }
-                    deploymentFutures.add(new HttpDeployment(router, this.basePackage).deploy(this.vertx, config));
-                    return CompositeFuture.all(deploymentFutures);
-                })
-                .onSuccess(compositeFuture -> {
-                    List<String> deploymentIds = compositeFuture.list();
+
+        this.createVertx()
+                .onSuccess(r -> {
                     if (log.isDebugEnabled()) {
-                        log.debug("已发布服务，{}", deploymentIds);
+                        log.debug("native transport: {}", vertx.isNativeTransportEnabled());
                     }
-                    FaaSEngineCloseHooker hooker = new FaaSEngineCloseHooker(vertx, deploymentIds);
-                    Runtime.getRuntime().addShutdownHook(hooker);
-                    promise.complete(hooker.closeCallback());
+                    FaaSConfig.read(vertx)
+                            .compose(config -> {
+                                List<Future> deploymentFutures = new ArrayList<>();
+                                if (this.deployments != null && !this.deployments.isEmpty()) {
+                                    deployments.forEach(deployment -> deploymentFutures.add(deployment.deploy(this.vertx, config)));
+                                }
+                                deploymentFutures.add(new HttpDeployment(router, this.basePackage).deploy(this.vertx, config));
+                                return CompositeFuture.all(deploymentFutures);
+                            })
+                            .onSuccess(compositeFuture -> {
+                                List<String> deploymentIds = compositeFuture.list();
+                                if (log.isDebugEnabled()) {
+                                    log.debug("已发布服务，{}", deploymentIds);
+                                }
+                                FaaSEngineCloseHooker hooker = new FaaSEngineCloseHooker(vertx, deploymentIds);
+                                Runtime.getRuntime().addShutdownHook(hooker);
+                                promise.complete(hooker.closeCallback());
+                            })
+                            .onFailure(e -> {
+                                log.error("部署失败", e);
+                                promise.fail(e);
+                            });
                 })
                 .onFailure(e -> {
-                    log.error("部署失败", e);
-                    promise.fail(e);
+                    log.error("启动失败！", e);
+                    promise.fail(new Exception("启动失败！", e));
                 });
+
         return promise.future();
     }
 
