@@ -51,11 +51,6 @@ public class HttpConfigConverter {
             obj.setNetNative(new org.pharosnet.vertx.faas.component.http.config.NetNativeConfig((io.vertx.core.json.JsonObject)member.getValue()));
           }
           break;
-        case "openapi":
-          if (member.getValue() instanceof JsonObject) {
-            obj.setOpenapi(new org.pharosnet.vertx.faas.component.http.config.OpenApiConfig((io.vertx.core.json.JsonObject)member.getValue()));
-          }
-          break;
         case "port":
           if (member.getValue() instanceof Number) {
             obj.setPort(((Number)member.getValue()).intValue());
@@ -95,9 +90,6 @@ public class HttpConfigConverter {
     }
     if (obj.getNetNative() != null) {
       json.put("netNative", obj.getNetNative().toJson());
-    }
-    if (obj.getOpenapi() != null) {
-      json.put("openapi", obj.getOpenapi().toJson());
     }
     if (obj.getPort() != null) {
       json.put("port", obj.getPort());

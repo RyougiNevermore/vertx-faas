@@ -137,7 +137,7 @@ public class Http {
         Router router = Router.router(vertx);
         routerbuilder.buildNotFoundHandler(router);
         routerbuilder.buildFailureHandler(router);
-        routerbuilder.buildOpenApi(router, config.getOpenapi(), basePackage);
+        routerbuilder.buildOpenApi(router, basePackage);
         if (config.getJwt() != null) {
             try {
                 routerbuilder.buildAuth(vertx, router, config.getJwt());

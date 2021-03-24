@@ -89,7 +89,7 @@ public class FnRouterGenerator {
         }
         buildMethod.addCode(String.format("\t\t.handler($T.create(%d))\n", fnUnit.getFn().timeout()), ClassName.get("io.vertx.ext.web.handler", "TimeoutHandler"));
         if (fnUnit.getFn().latency()) {
-            buildMethod.addCode("\t\t.handler($T.create())\n", ClassName.get("io.vertx.ext.web.handler", "ResponseContentTypeHandler"));
+            buildMethod.addCode("\t\t.handler($T.create())\n", ClassName.get("io.vertx.ext.web.handler", "ResponseTimeHandler"));
         }
 
         if (fnUnit.getFn().beforeHandleInterceptors().length > 0) {
@@ -176,10 +176,14 @@ public class FnRouterGenerator {
         handleMethod.addCode("\t\t\treturn; \n");
         handleMethod.addCode("\t\t}\n");
         handleMethod.addCode("\t\troutingContext.response()\n");
-        handleMethod.addCode("\t\t\t\t.setStatusCode(200)\n");
+        handleMethod.addCode(String.format("\t\t\t\t.setStatusCode(%d)\n", fnUnit.getFn().succeedStatus()));
         handleMethod.addCode("\t\t\t\t.setChunked(true)\n");
-        handleMethod.addCode("\t\t\t\t.putHeader(\"x-request-id\", context.getId())\n");
-        handleMethod.addCode("\t\t\t\t.write(result, \"UTF-8\"); \n");
+        handleMethod.addCode("\t\t\t\t.putHeader(\"x-request-id\", context.getId())");
+        if (fnUnit.getReturnElementClass().equals(TypeName.VOID)) {
+            handleMethod.addCode("; \n");
+        } else {
+            handleMethod.addCode("\n\t\t\t\t.write(result, \"UTF-8\");\n");
+        }
         handleMethod.addCode("\t\troutingContext.next(); \n");
         handleMethod.addCode("\t})\n");
         handleMethod.addCode("\t.onFailure(e -> {\n");

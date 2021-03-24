@@ -37,8 +37,6 @@ public class HttpConfig {
 
     private NetNativeConfig netNative;
 
-    private OpenApiConfig openapi;
-
     private JwtConfig jwt;
 
     private HttpDiscoveryConfig discovery;
@@ -97,14 +95,6 @@ public class HttpConfig {
 
     public void setNetNative(NetNativeConfig netNative) {
         this.netNative = netNative;
-    }
-
-    public OpenApiConfig getOpenapi() {
-        return openapi;
-    }
-
-    public void setOpenapi(OpenApiConfig openapi) {
-        this.openapi = openapi;
     }
 
     public HttpDiscoveryConfig getDiscovery() {

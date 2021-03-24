@@ -12,9 +12,13 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface Fn {
 
+    int succeedStatus() default 200;
+
     HttpMethod method() default HttpMethod.POST;
 
     String path() default "";
+
+    String summary() default "";
 
     String description() default "";
 
@@ -28,7 +32,7 @@ public @interface Fn {
 
     long timeout() default 5000L;
 
-    boolean latency() default false;
+    boolean latency() default true;
 
     String[] tags() default {};
 
