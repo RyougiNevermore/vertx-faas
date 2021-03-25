@@ -20,6 +20,12 @@
 
     <dependencies>
 
+        <dependency>
+            <groupId>org.pharosnet</groupId>
+            <artifactId>vertx-faas-core</artifactId>
+            <version>${faas.version}</version>
+        </dependency>
+
         <!-- jackson >>> -->
         <dependency>
             <groupId>com.fasterxml.jackson.module</groupId>

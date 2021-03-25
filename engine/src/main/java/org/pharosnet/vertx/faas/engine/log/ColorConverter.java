@@ -19,7 +19,7 @@ public class ColorConverter extends CompositeConverter<ILoggingEvent> {
 
     static {
         FaaSActive active = FaaSActive.get();
-        if (active.equals(FaaSActive.DEV)) {
+        if (active.equals(FaaSActive.LOCAL)) {
             AnsiOutput.setEnabled(AnsiOutput.Enabled.ALWAYS);
         }
         Map<String, AnsiElement> ansiElements = new HashMap<>();

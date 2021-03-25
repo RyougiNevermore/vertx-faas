@@ -54,9 +54,9 @@ public class DeploymentGenerator {
         MethodSpec.Builder deployMethod = MethodSpec.methodBuilder("deploy")
                 .addModifiers(Modifier.PUBLIC)
                 .addParameter(ClassName.get(Vertx.class), "vertx")
-                .addParameter(ClassName.get(Config.class), "config")
+                .addParameter(ClassName.get(JsonObject.class), "config")
                 .addStatement("$T deploymentOptions = new $T()", ClassName.get(DeploymentOptions.class), ClassName.get(DeploymentOptions.class))
-                .addStatement("deploymentOptions.setConfig($T.mapFrom(config))", ClassName.get(JsonObject.class))
+                .addStatement("deploymentOptions.setConfig(config)")
                 .addStatement("return vertx.deployVerticle(new $T(super.getRegister()), deploymentOptions)", ClassName.get(pkg, fnVerticleClassName))
                 .returns(ParameterizedTypeName.get(ClassName.get(Future.class), ClassName.get(String.class)));
 

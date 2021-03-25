@@ -51,11 +51,7 @@
         <!--   <<< logger  -->
 
         <!--   module >>> -->
-        <dependency>
-            <groupId>org.pharosnet</groupId>
-            <artifactId>vertx-faas-core</artifactId>
-            <version>${faas.version}</version>
-        </dependency>
+
 
         <!--   <<< module  -->
 

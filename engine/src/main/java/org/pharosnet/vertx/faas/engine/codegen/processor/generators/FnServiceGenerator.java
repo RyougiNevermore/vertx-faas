@@ -6,6 +6,7 @@ import io.vertx.codegen.annotations.VertxGen;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import org.pharosnet.vertx.faas.core.exceptions.SystemException;
+import org.pharosnet.vertx.faas.core.exceptions.UnauthorizedException;
 import org.pharosnet.vertx.faas.engine.validator.Validators;
 
 import javax.annotation.processing.Filer;
@@ -180,7 +181,7 @@ public class FnServiceGenerator {
         if (fnUnit.getFn().authentication()) {
             executeMethod.addCode("// valid auth \n");
             executeMethod.addCode("if (context.getUser() == null) { \n");
-            executeMethod.addCode("\thandler.handle($T.fail()); \n", ClassName.get("org.pharosnet.vertx.faas.exception", "UnauthorizedException"));
+            executeMethod.addCode("\thandler.handle($T.fail()); \n", ClassName.get(UnauthorizedException.class));
             executeMethod.addCode("\treturn;\n");
             executeMethod.addCode("} \n");
             executeMethod.addCode("\n");
@@ -211,7 +212,7 @@ public class FnServiceGenerator {
                     ClassName.get(Method.class),
                     ClassName.bestGuess(fnUnit.getFn().implementClassFullName()),
                     ClassName.get(Validators.class),
-                    ClassName.get("org.pharosnet.vertx.faas.exception", "SystemException")
+                    ClassName.get(SystemException.class)
             );
 
         }

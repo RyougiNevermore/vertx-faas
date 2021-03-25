@@ -65,14 +65,18 @@ public class VerticleGenerator {
         // unregister()
         MethodSpec.Builder unregisterMethod = MethodSpec.methodBuilder("unregister")
                 .addModifiers(Modifier.PRIVATE)
-                .addStatement("$T promise = $T.promise()", ParameterizedTypeName.get(ClassName.get(Promise.class), ClassName.VOID), ClassName.get(Promise.class))
+                .addStatement("$T promise = $T.promise()",
+                        ParameterizedTypeName.get(ClassName.get(Promise.class), ClassName.get(Void.class)),
+                        ClassName.get(Promise.class))
                 .addCode("if (consumers == null) {\n")
                 .addCode("\tpromise.complete();\n")
                 .addCode("\treturn promise.future();\n")
                 .addCode("}\n")
                 .addCode("$T compositeFuture = $T.all(consumers.stream().map(consumer -> {\n",
                         ClassName.get(CompositeFuture.class), ClassName.get(CompositeFuture.class))
-                .addCode("\t$T unregisterPromise = $T.promise();\n", ParameterizedTypeName.get(ClassName.get(Promise.class), ClassName.VOID), ClassName.get(Promise.class))
+                .addCode("\t$T unregisterPromise = $T.promise();\n",
+                        ParameterizedTypeName.get(ClassName.get(Promise.class), ClassName.get(Void.class)),
+                        ClassName.get(Promise.class))
                 .addCode("\tconsumer.unregister(unregisterPromise);\n")
                 .addCode("\treturn unregisterPromise.future();\n")
                 .addCode("}).collect($T.toList()));\n", ClassName.get(Collectors.class))

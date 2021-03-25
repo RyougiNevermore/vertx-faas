@@ -12,9 +12,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URL;
+import java.util.Locale;
 import java.util.Optional;
 
-public class Config extends JsonObject {
+public class Config {
 
     private static final Logger log = LoggerFactory.getLogger(Config.class);
 
@@ -22,15 +23,15 @@ public class Config extends JsonObject {
     private static final String KIND_KEY = "FAAS_CONFIG_KIND";
     private static final String FORMAT_KEY = "FAAS_CONFIG_FORMAT";
 
-    public static Future<Config> read(Vertx vertx) {
+    public static Future<JsonObject> read(Vertx vertx) {
 
         String kind = Optional.ofNullable(System.getenv(KIND_KEY)).orElse("").trim();
         if (kind.isBlank()) {
             kind = "FILE";
         }
-        String format = Optional.ofNullable(System.getenv(FORMAT_KEY)).orElse("").trim();
+        String format = Optional.ofNullable(System.getenv(FORMAT_KEY)).orElse("").trim().toLowerCase();
         if (format.isBlank()) {
-            format = "JSON";
+            format = "json";
         }
 
         if (kind.equalsIgnoreCase("FILE")) {
@@ -40,9 +41,9 @@ public class Config extends JsonObject {
         return Future.failedFuture("读取配置文件失败，未知FAAS_CONFIG_KIND。");
     }
 
-    private static Future<Config> readFromFile(Vertx vertx, String format) {
-        Promise<Config> promise = Promise.promise();
-        String filename = String.format("faas-%s.json", FaaSActive.get().getValue());
+    private static Future<JsonObject> readFromFile(Vertx vertx, String format) {
+        Promise<JsonObject> promise = Promise.promise();
+        String filename = String.format("faas-%s.%s", FaaSActive.get().getValue(), format);
         URL configURL = Thread.currentThread().getContextClassLoader().getResource(filename);
         if (configURL == null) {
             log.error("读取配置文件错误，无法找到文件。{}", filename);
@@ -56,7 +57,10 @@ public class Config extends JsonObject {
                 .setConfig(new JsonObject().put("path", configFile));
         ConfigRetriever retriever = ConfigRetriever.create(vertx, new ConfigRetrieverOptions().addStore(configStoreOptions));
         retriever.getConfig().onSuccess(r -> {
-            promise.complete((Config) r);
+            if (log.isDebugEnabled()) {
+                log.debug("config : \n {}", r.encodePrettily());
+            }
+            promise.complete(r);
         }).onFailure(e -> {
             log.error("读取配置文件错误, {}", configFile, e);
             promise.fail("读取配置文件错误");
