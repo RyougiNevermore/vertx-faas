@@ -10,8 +10,6 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.json.jackson.DatabindCodec;
 import io.vertx.core.spi.cluster.ClusterManager;
 import io.vertx.spi.cluster.hazelcast.HazelcastClusterManager;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.pharosnet.vertx.faas.core.commons.ClassUtils;
 import org.pharosnet.vertx.faas.core.components.ComponentDeployment;
 import org.pharosnet.vertx.faas.engine.codegen.annotation.FnDeployment;
@@ -20,6 +18,8 @@ import org.pharosnet.vertx.faas.engine.http.HttpDeployment;
 import org.pharosnet.vertx.faas.engine.http.router.AbstractHttpRouter;
 import org.pharosnet.vertx.faas.engine.http.router.DefaultHttpRouter;
 import org.pharosnet.vertx.faas.engine.validator.Validators;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
@@ -28,7 +28,7 @@ import java.util.Optional;
 
 public class FaaSEngine {
 
-    private static final Logger log = LogManager.getLogger(FaaSEngine.class);
+    private static final Logger log = LoggerFactory.getLogger(FaaSEngine.class);
 
     public FaaSEngine() {
         this.init();

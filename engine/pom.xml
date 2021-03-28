@@ -12,7 +12,7 @@
 
     <artifactId>vertx-faas-engine</artifactId>
 
-    <name>faas-engine</name>
+    <name>vertx-faas-engine</name>
     <url>https://github.com/pharosnet/vertx-faas</url>
 
     <description>Vertx FaaS - ENGINE</description>

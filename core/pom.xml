@@ -12,7 +12,7 @@
 
     <artifactId>vertx-faas-core</artifactId>
 
-    <name>faas-core</name>
+    <name>vertx-faas-core</name>
     <url>https://github.com/pharosnet/vertx-faas</url>
     <description>Vertx FaaS - CORE</description>
 

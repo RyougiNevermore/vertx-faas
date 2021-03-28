@@ -41,6 +41,10 @@ public class FnContext extends Context {
         }
     }
 
+    public Context asContext() {
+        return this;
+    }
+
     @Override
     public JsonObject toJson() {
         JsonObject jsonObject = super.toJson();
