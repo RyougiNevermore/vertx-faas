@@ -31,22 +31,6 @@
         </dependency>
         <!--   <<< vertx  -->
 
-        <!--   auto-service >>> -->
-        <dependency>
-            <groupId>com.google.auto.service</groupId>
-            <artifactId>auto-service</artifactId>
-            <version>1.0-rc7</version>
-        </dependency>
-        <!--   <<< auto-service  -->
-
-        <!--   javapoet >>> -->
-        <dependency>
-            <groupId>com.squareup</groupId>
-            <artifactId>javapoet</artifactId>
-            <version>1.13.0</version>
-        </dependency>
-        <!--   <<< javapoet  -->
-
     </dependencies>
 
     <build>

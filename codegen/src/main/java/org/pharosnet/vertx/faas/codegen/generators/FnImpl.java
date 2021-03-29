@@ -1,20 +1,23 @@
 package org.pharosnet.vertx.faas.codegen.generators;
 
 import org.pharosnet.vertx.faas.codegen.annotation.Fn;
+import org.pharosnet.vertx.faas.codegen.annotation.FnInterceptor;
 
 import javax.lang.model.element.TypeElement;
 
 public class FnImpl {
 
-    public FnImpl(TypeElement interfaceTypeElement, TypeElement typeElement, Fn fn) {
+    public FnImpl(TypeElement interfaceTypeElement, TypeElement typeElement, Fn fn, FnInterceptor fnInterceptor) {
         this.interfaceTypeElement = interfaceTypeElement;
         this.typeElement = typeElement;
         this.fn = fn;
+        this.fnInterceptor = fnInterceptor;
     }
 
     private TypeElement interfaceTypeElement;
     private TypeElement typeElement;
     private Fn fn;
+    private FnInterceptor fnInterceptor;
 
     public TypeElement getInterfaceTypeElement() {
         return interfaceTypeElement;
@@ -38,5 +41,13 @@ public class FnImpl {
 
     public void setFn(Fn fn) {
         this.fn = fn;
+    }
+
+    public FnInterceptor getFnInterceptor() {
+        return fnInterceptor;
+    }
+
+    public void setFnInterceptor(FnInterceptor fnInterceptor) {
+        this.fnInterceptor = fnInterceptor;
     }
 }

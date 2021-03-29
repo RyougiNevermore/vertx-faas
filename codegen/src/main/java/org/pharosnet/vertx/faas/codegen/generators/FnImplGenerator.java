@@ -16,11 +16,13 @@ import java.util.Set;
 public class FnImplGenerator {
 
     public FnImplGenerator(Messager messager, Elements elementUtils, FnImpl fnImpl, ModuleGen moduleGen) throws Exception {
+        this.elementUtils = elementUtils;
         this.messager = messager;
         this.fnImpl = fnImpl;
         this.load(elementUtils, fnImpl, moduleGen);
     }
 
+    private final Elements elementUtils;
     private final Messager messager;
     private FnUnit fnUnit;
     private TypeMirror typeMirror;
@@ -46,8 +48,8 @@ public class FnImplGenerator {
         FnServiceImplGenerator fnServiceGenerator = new FnServiceImplGenerator(this.messager);
         fnServiceGenerator.generate(this.fnUnit, filer, this.typeMirror);
         // 生成fn的 router
-        FnRouterGenerator fnRouterGenerator = new FnRouterGenerator(this.messager);
-        fnRouterGenerator.generate(this.fnUnit, filer, this.typeMirror);
+        FnRouterGenerator fnRouterGenerator = new FnRouterGenerator(this.elementUtils, this.messager);
+        fnRouterGenerator.generate(this.fnUnit, this.fnImpl, filer, this.typeMirror);
         return this.fnUnit;
     }
 

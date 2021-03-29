@@ -1,5 +1,6 @@
 package org.pharosnet.vertx.faas.database.core;
 
+import com.github.benmanes.caffeine.cache.AsyncCache;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.vertx.core.CompositeFuture;
@@ -21,6 +22,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Databases {
@@ -67,6 +69,11 @@ public class Databases {
                 .maximumSize(transactionCacheMaxSize)
                 .evictionListener(new TransactionEvictionListener())
                 .build();
+        this.transactionAsyncMap = Caffeine.newBuilder()
+                .expireAfterWrite(transactionCacheTTL)
+                .maximumSize(transactionCacheMaxSize)
+                .evictionListener(new TransactionEvictionListener())
+                .buildAsync();
         this.vertx = vertx;
         this.serviceApplied = false;
         this.transactionCachedTTL = transactionCacheTTL.toMillis();
@@ -79,6 +86,8 @@ public class Databases {
     private final List<DatabaseNode> nodes;
     private final AtomicInteger index;
     private final Cache<@NonNull String, @NonNull CachedTransaction> transactions;
+    private final AsyncCache<@NonNull String, @NonNull CachedTransaction> transactionAsyncMap;
+
     private final long transactionCachedTTL;
 
 
@@ -86,6 +95,37 @@ public class Databases {
     private String hostId;
     private ServiceDiscovery discovery;
 
+    public Future<Optional<CachedTransaction>> getCachedTransaction(String key) {
+        Promise<Optional<CachedTransaction>> promise = Promise.promise();
+        CompletableFuture<CachedTransaction> future = this.transactionAsyncMap.getIfPresent(key);
+        if (future == null) {
+            promise.complete(Optional.empty());
+            return promise.future();
+        }
+        future.whenCompleteAsync(((cachedTransaction, throwable) -> {
+            if (throwable != null) {
+                promise.fail(throwable);
+                return;
+            }
+            promise.complete(Optional.ofNullable(cachedTransaction));
+        }));
+        return promise.future();
+    }
+
+    public Future<Void> putCachedTransaction(String key, CachedTransaction cachedTransaction) {
+        Promise<Void> promise = Promise.promise();
+        CompletableFuture<CachedTransaction> future = CompletableFuture.supplyAsync(() -> cachedTransaction);
+        future.whenCompleteAsync((_cachedTransaction, throwable) -> {
+            promise.complete();
+        });
+        this.transactionAsyncMap.put(key, future);
+        return promise.future();
+    }
+
+    public Future<Void> removeCachedTransaction(String key) {
+        this.transactionAsyncMap.synchronous().invalidate(key);
+        return Future.succeededFuture();
+    }
 
     public Future<Void> publish(ServiceDiscovery discovery) {
         this.discovery = discovery;

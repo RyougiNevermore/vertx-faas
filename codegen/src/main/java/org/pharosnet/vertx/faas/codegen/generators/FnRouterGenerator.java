@@ -12,21 +12,25 @@ import org.pharosnet.vertx.faas.codegen.http.HttpMethod;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import java.util.List;
 import java.util.Optional;
 
 public class FnRouterGenerator {
 
-    public FnRouterGenerator(Messager messager) {
+    public FnRouterGenerator(Elements elementUtils, Messager messager) {
+        this.elementUtils = elementUtils;
         this.messager = messager;
     }
 
+    private final Elements elementUtils;
     private final Messager messager;
 
-    public void generate(FnUnit fnUnit, Filer filer, TypeMirror typeMirror) throws Exception {
+    public void generate(FnUnit fnUnit, FnImpl fnImpl, Filer filer, TypeMirror typeMirror) throws Exception {
         String pkg = fnUnit.getPackageName();
         String fnClassName = fnUnit.getClassName();
         String serviceClassName = String.format("%sService", fnClassName);
@@ -90,15 +94,17 @@ public class FnRouterGenerator {
             buildMethod.addCode("\t\t.handler($T.create())\n", ClassName.get("io.vertx.ext.web.handler", "ResponseTimeHandler"));
         }
 
-        if (fnUnit.getFn().beforeHandleInterceptors().length > 0) {
-            for (String interceptorClassName : fnUnit.getFn().beforeHandleInterceptors()) {
+        if (fnImpl.getFnInterceptor() != null && fnImpl.getFnInterceptor().before().length > 0) {
+            for (String interceptorClassName : fnImpl.getFnInterceptor().before()) {
                 ClassName interceptor = ClassName.bestGuess(interceptorClassName);
                 buildMethod.addCode("\t\t.handler(new $T(vertx))\n", interceptor);
             }
         }
+
         buildMethod.addCode("\t\t.handler(this::handle)\n");
-        if (fnUnit.getFn().afterHandleInterceptors().length > 0) {
-            for (String interceptorClassName : fnUnit.getFn().afterHandleInterceptors()) {
+
+        if (fnImpl.getFnInterceptor() != null && fnImpl.getFnInterceptor().after().length > 0) {
+            for (String interceptorClassName : fnImpl.getFnInterceptor().after()) {
                 ClassName interceptor = ClassName.bestGuess(interceptorClassName);
                 buildMethod.addCode("\t\t.handler(new $T(vertx))\n", interceptor);
             }
