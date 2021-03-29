@@ -8,28 +8,25 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.servicediscovery.ServiceDiscovery;
 import org.pharosnet.vertx.faas.core.components.ComponentDeployment;
 
-public class DatabaseDeployment extends ComponentDeployment {
+public class DatabaseClusterDeployment extends ComponentDeployment {
 
-    public DatabaseDeployment() {
-        this(1);
+    private DatabaseClusterDeployment() {
+        this(null);
     }
 
-    public DatabaseDeployment(int instances) {
+    public DatabaseClusterDeployment(ServiceDiscovery discovery) {
         super(new DatabaseMessageConsumerRegister());
-        if (instances < 1) {
-            instances = CpuCoreSensor.availableProcessors() * 2;
-        }
-        this.instances = instances;
+        this.discovery = discovery;
     }
 
-    private final int instances;
+    private final ServiceDiscovery discovery;
 
     @Override
     public Future<String> deploy(Vertx vertx, JsonObject config) {
         DeploymentOptions deploymentOptions = new DeploymentOptions();
-        deploymentOptions.setInstances(instances);
+        deploymentOptions.setInstances(CpuCoreSensor.availableProcessors() * 2);
         deploymentOptions.setConfig(config);
-        return vertx.deployVerticle(new DatabaseVerticle(super.getRegister(), null), deploymentOptions);
+        return vertx.deployVerticle(new DatabaseVerticle(super.getRegister(), this.discovery), deploymentOptions);
     }
 
 }

@@ -34,11 +34,10 @@ public class FnServiceImplGenerator {
 
         // logger
         FieldSpec.Builder staticLogField = FieldSpec.builder(
-                ClassName.get("org.apache.logging.log4j", "Logger"), "log",
+                ClassName.get("org.slf4j", "Logger"), "log",
                 Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL).initializer("$T.getLogger($T.class)",
-                ClassName.get("org.apache.logging.log4j", "LogManager"),
+                ClassName.get("org.slf4j", "LoggerFactory"),
                 ClassName.get(pkg, serviceImplClassName));
-
 
         // register
         MethodSpec.Builder registerMethod = MethodSpec.methodBuilder("register")

@@ -1,0 +1,94 @@
+package org.pharosnet.vertx.faas.database.codegen;
+
+import com.google.auto.service.AutoService;
+import org.pharosnet.vertx.faas.database.codegen.annotations.DAL;
+import org.pharosnet.vertx.faas.database.codegen.annotations.EnableDAL;
+import org.pharosnet.vertx.faas.database.codegen.annotations.Table;
+import org.pharosnet.vertx.faas.database.codegen.processor.DALGenerator;
+import org.pharosnet.vertx.faas.database.codegen.processor.TableGenerator;
+import org.pharosnet.vertx.faas.database.codegen.processor.TableModel;
+
+import javax.annotation.processing.*;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.TypeElement;
+import javax.tools.Diagnostic;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@SupportedAnnotationTypes({
+        "org.pharosnet.vertx.faas.database.codegen.annotations.EnableDAL",
+        "org.pharosnet.vertx.faas.database.codegen.annotations.Table",
+        "org.pharosnet.vertx.faas.database.codegen.annotations.DAL",
+})
+@SupportedOptions({"codegen.output"})
+@SupportedSourceVersion(SourceVersion.RELEASE_11)
+@AutoService(Processor.class)
+public class DatabaseCodeGenProcessor extends AbstractProcessor {
+
+    private Messager messager;
+
+    @Override
+    public synchronized void init(ProcessingEnvironment processingEnv) {
+        super.init(processingEnv);
+        this.messager = processingEnv.getMessager();
+    }
+
+    @Override
+    public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        try {
+            DatabaseType databaseType = this.getDatabaseType(roundEnv);
+            Map<String, TableModel> tableModelMap = this.generateTable(roundEnv, databaseType);
+            if (tableModelMap.isEmpty()) {
+                throw new Exception("未能发现@Table的类。");
+            }
+            this.generateDAL(roundEnv, tableModelMap, databaseType);
+        } catch (Exception e) {
+            messager.printMessage(Diagnostic.Kind.ERROR, e.getMessage());
+            return false;
+        }
+        return true;
+    }
+
+    private DatabaseType getDatabaseType(RoundEnvironment roundEnv) throws Exception {
+        Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(EnableDAL.class);
+
+        if (elements == null || elements.isEmpty()) {
+            throw new Exception("@EnableDAL 未设置.");
+        }
+        if (elements.size() > 1) {
+            throw new Exception("@EnableDAL 只能有一个.");
+        }
+        return elements.iterator().next().getAnnotation(EnableDAL.class).type();
+    }
+
+    private Map<String, TableModel> generateTable(RoundEnvironment roundEnv, DatabaseType databaseType) throws Exception {
+        Map<String, TableModel> tableModelMap = new HashMap<>();
+        List<TypeElement> typeElements = roundEnv.getElementsAnnotatedWith(Table.class)
+                .stream()
+                .map(element -> (TypeElement) element)
+                .collect(Collectors.toList());
+        TableGenerator tableGenerator = new TableGenerator(this.processingEnv, databaseType);
+        for (TypeElement element : typeElements) {
+            TableModel tableModel = tableGenerator.generate(element);
+            tableModelMap.put(tableModel.getClassName().packageName() + "." + tableModel.getClassName().simpleName(), tableModel);
+        }
+        return tableModelMap;
+    }
+
+    private void generateDAL(RoundEnvironment roundEnv, Map<String, TableModel> tableModelMap, DatabaseType databaseType) throws Exception {
+        List<TypeElement> typeElements = roundEnv.getElementsAnnotatedWith(DAL.class)
+                .stream()
+                .map(element -> (TypeElement) element)
+                .collect(Collectors.toList());
+
+
+        DALGenerator dalGenerator = new DALGenerator(processingEnv, tableModelMap, databaseType);
+        for (TypeElement element : typeElements) {
+            dalGenerator.generate(element);
+        }
+    }
+}

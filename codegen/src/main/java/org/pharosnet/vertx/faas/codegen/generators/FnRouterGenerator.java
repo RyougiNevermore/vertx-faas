@@ -34,9 +34,9 @@ public class FnRouterGenerator {
 
         // logger
         FieldSpec.Builder staticLogField = FieldSpec.builder(
-                ClassName.get("org.apache.logging.log4j", "Logger"), "log",
+                ClassName.get("org.slf4j", "Logger"), "log",
                 Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL).initializer("$T.getLogger($T.class)",
-                ClassName.get("org.apache.logging.log4j", "LogManager"),
+                ClassName.get("org.slf4j", "LoggerFactory"),
                 ClassName.get(pkg, fnRouterClassName));
 
         // construct

@@ -6,29 +6,35 @@
 
     <parent>
         <groupId>org.pharosnet</groupId>
-        <artifactId>vertx-faas</artifactId>
+        <artifactId>vertx-faas-database</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>vertx-faas-database</artifactId>
-    <packaging>pom</packaging>
+    <artifactId>vertx-faas-database-codegen</artifactId>
 
-    <name>vertx-faas-database</name>
+    <name>vertx-faas-database-codegen</name>
     <url>https://github.com/pharosnet/vertx-faas</url>
-    <description>Vertx FaaS - DATABASE</description>
+    <description>Vertx FaaS - DATABASE CODEGEN</description>
 
-    <modules>
-        <module>api</module>
-        <module>core</module>
-        <module>codegen</module>
-    </modules>
 
     <dependencies>
+
+        <!--   auto-service >>> -->
         <dependency>
-            <groupId>org.pharosnet</groupId>
-            <artifactId>vertx-faas-core</artifactId>
-            <version>${faas.version}</version>
+            <groupId>com.google.auto.service</groupId>
+            <artifactId>auto-service</artifactId>
+            <version>1.0-rc7</version>
         </dependency>
+        <!--   <<< auto-service  -->
+
+        <!--   javapoet >>> -->
+        <dependency>
+            <groupId>com.squareup</groupId>
+            <artifactId>javapoet</artifactId>
+            <version>1.13.0</version>
+        </dependency>
+        <!--   <<< javapoet  -->
+
     </dependencies>
 
     <build>
