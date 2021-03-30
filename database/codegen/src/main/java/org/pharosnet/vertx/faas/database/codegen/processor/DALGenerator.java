@@ -127,7 +127,7 @@ public class DALGenerator {
     }
 
     private void generateMethod(TypeSpec.Builder typeBuilder, DALMethodModel methodModel) {
-        // todo
+        new DALMethodGenerator().generate(typeBuilder, methodModel);
     }
 
 }

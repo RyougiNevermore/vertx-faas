@@ -1,6 +1,5 @@
 package org.pharosnet.vertx.faas.database.codegen.processor;
 
-import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import org.pharosnet.vertx.faas.database.codegen.annotations.Arg;
@@ -9,23 +8,33 @@ import org.pharosnet.vertx.faas.database.codegen.annotations.Query;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class DALMethodModel {
 
-    public DALMethodModel(ExecutableElement methodElement) throws Exception {
+    public DALMethodModel(ExecutableElement methodElement, int pos) throws Exception {
+        this.methodElement = methodElement;
+        this.name = methodElement.getSimpleName().toString();
         this.query = methodElement.getAnnotation(Query.class);
-        TypeName returnType = TypeName.get(methodElement.getReturnType());
-        if (!returnType.toString().startsWith("io.vertx.core.Future")) {
+        this.sqlFieldName= String.format("_%sSQL%d", this.name, pos);
+
+        TypeName returnTypeName = TypeName.get(methodElement.getReturnType());
+        if (returnTypeName instanceof ParameterizedTypeName) {
+            this.returnClassName = ((ParameterizedTypeName) returnTypeName);
+            if (!this.returnClassName.rawType.toString().equals("io.vertx.core.Future")) {
+                throw new Exception(String.format("%s 函数的返回值不是io.vertx.core.Future。", methodElement.getSimpleName()));
+            }
+            this.returnTopParameterizedTypeName = this.returnClassName.typeArguments.get(0);
+            this.loadReturnElementClassName(this.returnClassName);
+        } else {
             throw new Exception(String.format("%s 函数的返回值不是io.vertx.core.Future。", methodElement.getSimpleName()));
         }
-        this.returnClassName = (ParameterizedTypeName) returnType;
-        this.returnElementClassName = (ClassName) this.returnClassName.typeArguments.get(0);
         List<? extends VariableElement> parameters = methodElement.getParameters();
         if (parameters == null || parameters.size() == 0) {
             throw new Exception(String.format("%s 函数的参数为空。", methodElement.getSimpleName()));
         }
-
         this.paramModels = new ArrayList<>();
         for (int i = 0; i < parameters.size(); i++) {
             VariableElement parameter = parameters.get(i);
@@ -44,12 +53,115 @@ public class DALMethodModel {
         if (this.paramModels.isEmpty()) {
             throw new Exception(String.format("%s 函数没有参数。", methodElement.getSimpleName()));
         }
+        this.paramArgNames = new ArrayList<>();
+        for (DALMethodParamModel paramModel : this.paramModels) {
+            if (paramModel.getArg().placeholder()) {
+                if (this.placeholders == null) {
+                    this.placeholders = new HashMap<>();
+                }
+                String placeholderCode;
+                TypeName paramModelTypeName = TypeName.get(paramModel.getParamTypeElement().asType());
+                if (paramModelTypeName instanceof ParameterizedTypeName) {
+                    ParameterizedTypeName paramModelTypeName0 = (ParameterizedTypeName)paramModelTypeName;
+                    if (!paramModelTypeName0.rawType.toString().equals("java.util.List")) {
+                        throw new Exception(String.format("%s 函数的placeholder arg必须是java.util.List。", methodElement.getSimpleName()));
+                    }
+                    TypeName placeholderArgTypeName = paramModelTypeName0.typeArguments.get(0);
+                    if (placeholderArgTypeName.toString().contains("Integer")) {
+                        placeholderCode = paramModel.getParamName() + ".stream().map(v -> String.format(\"%s\", v)).reduce((v1, v2) -> String.format(\"%s, %s\", v1, v2)).orElse(\"NULL\");\n";
+                    } else if (placeholderArgTypeName.toString().contains("Double")) {
+                        placeholderCode = paramModel.getParamName() + ".stream().map(v -> String.format(\"%s\", v)).reduce((v1, v2) -> String.format(\"%s, %s\", v1, v2)).orElse(\"NULL\");\n";
+                    } else if (placeholderArgTypeName.toString().contains("Long")) {
+                        placeholderCode = paramModel.getParamName() + ".stream().map(v -> String.format(\"%s\", v)).reduce((v1, v2) -> String.format(\"%s, %s\", v1, v2)).orElse(\"NULL\");\n";
+                    } else {
+                        placeholderCode = paramModel.getParamName() + ".stream().map(v -> String.format(\"%s\", v.toString())).reduce((v1, v2) -> String.format(\"%s, %s\", v1, v2)).orElse(\"NULL\");\n";
+                    }
+                    this.placeholders.put(paramModel.getParamName(),placeholderCode);
+                } else {
+                    throw new Exception(String.format("%s 函数的placeholder arg必须是java.util.List。", methodElement.getSimpleName()));
+                }
+                if (!this.hasPlaceholder) {
+                    this.hasPlaceholder = true;
+                }
+                continue;
+            }
+            for (int ppos : paramModel.getArg().value()) {
+                this.paramArgNames.add(ppos, paramModel.getParamName());
+            }
+        }
     }
 
+    private void loadReturnElementClassName(ParameterizedTypeName returnTypeName) throws Exception {
+        TypeName returnParameterTypeName = returnTypeName.typeArguments.get(0);
+        if (returnParameterTypeName instanceof ParameterizedTypeName) {
+            ParameterizedTypeName returnParameterParameterizedTypeName = ((ParameterizedTypeName) returnParameterTypeName);
+            if (returnParameterParameterizedTypeName.rawType.toString().equals("java.util.Optional")) {
+                this.returnWithOptional = true;
+                returnParameterTypeName = returnParameterParameterizedTypeName.typeArguments.get(0);
+                if (returnParameterTypeName instanceof ParameterizedTypeName) {
+                    this.loadReturnElementClassName((ParameterizedTypeName)returnParameterTypeName);
+                } else {
+                    this.singleReturn = true;
+                    this.returnElementClassName = returnParameterTypeName;
+                }
+            } else if (returnParameterParameterizedTypeName.rawType.toString().equals("java.util.List")) {
+                this.singleReturn = false;
+                this.returnList = true;
+                this.returnElementClassName = returnParameterParameterizedTypeName.typeArguments.get(0);
+            } else if (returnParameterParameterizedTypeName.rawType.toString().equals("java.util.Stream")) {
+                this.singleReturn = false;
+                this.returnStream = true;
+                this.returnElementClassName = returnParameterParameterizedTypeName.typeArguments.get(0);
+            } else {
+                throw new Exception(String.format("%s 函数的返回值的泛型不合法。", methodElement.getSimpleName()));
+            }
+        } else {
+            this.singleReturn = true;
+            this.returnElementClassName = returnParameterTypeName;
+        }
+
+    }
+
+    private String name;
     private Query query;
+    private String sqlFieldName;
     private ParameterizedTypeName returnClassName;
-    private ClassName returnElementClassName;
+    private TypeName returnElementClassName;
     private List<DALMethodParamModel> paramModels;
+    private List<String> paramArgNames;
+    private boolean hasPlaceholder;
+    private Map<String, String> placeholders;
+    private ExecutableElement methodElement;
+    private boolean singleReturn;
+    private TypeName returnTopParameterizedTypeName;
+    private boolean returnWithOptional;
+    private boolean returnList;
+    private boolean returnStream;
+
+
+    public ExecutableElement getMethodElement() {
+        return methodElement;
+    }
+
+    public void setMethodElement(ExecutableElement methodElement) {
+        this.methodElement = methodElement;
+    }
+
+    public String getSqlFieldName() {
+        return sqlFieldName;
+    }
+
+    public void setSqlFieldName(String sqlFieldName) {
+        this.sqlFieldName = sqlFieldName;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
 
     public Query getQuery() {
         return query;
@@ -75,11 +187,75 @@ public class DALMethodModel {
         this.paramModels = paramModels;
     }
 
-    public ClassName getReturnElementClassName() {
+    public TypeName getReturnElementClassName() {
         return returnElementClassName;
     }
 
-    public void setReturnElementClassName(ClassName returnElementClassName) {
+    public List<String> getParamArgNames() {
+        return paramArgNames;
+    }
+
+    public void setParamArgNames(List<String> paramArgNames) {
+        this.paramArgNames = paramArgNames;
+    }
+
+    public boolean isHasPlaceholder() {
+        return hasPlaceholder;
+    }
+
+    public void setHasPlaceholder(boolean hasPlaceholder) {
+        this.hasPlaceholder = hasPlaceholder;
+    }
+
+    public Map<String, String> getPlaceholders() {
+        return placeholders;
+    }
+
+    public void setPlaceholders(Map<String, String> placeholders) {
+        this.placeholders = placeholders;
+    }
+
+    public boolean isSingleReturn() {
+        return singleReturn;
+    }
+
+    public void setSingleReturn(boolean singleReturn) {
+        this.singleReturn = singleReturn;
+    }
+
+    public void setReturnElementClassName(TypeName returnElementClassName) {
         this.returnElementClassName = returnElementClassName;
+    }
+
+    public TypeName getReturnTopParameterizedTypeName() {
+        return returnTopParameterizedTypeName;
+    }
+
+    public void setReturnTopParameterizedTypeName(TypeName returnTopParameterizedTypeName) {
+        this.returnTopParameterizedTypeName = returnTopParameterizedTypeName;
+    }
+
+    public boolean isReturnWithOptional() {
+        return returnWithOptional;
+    }
+
+    public void setReturnWithOptional(boolean returnWithOptional) {
+        this.returnWithOptional = returnWithOptional;
+    }
+
+    public boolean isReturnList() {
+        return returnList;
+    }
+
+    public void setReturnList(boolean returnList) {
+        this.returnList = returnList;
+    }
+
+    public boolean isReturnStream() {
+        return returnStream;
+    }
+
+    public void setReturnStream(boolean returnStream) {
+        this.returnStream = returnStream;
     }
 }

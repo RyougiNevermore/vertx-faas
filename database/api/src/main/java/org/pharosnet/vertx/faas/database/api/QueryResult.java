@@ -26,6 +26,7 @@ public class QueryResult {
 
     private long latency;
     private Long lastInsertedId;
+    private Integer affected;
     private List<JsonObject> rows;
 
     public long getLatency() {
@@ -42,6 +43,14 @@ public class QueryResult {
 
     public void setLastInsertedId(Long lastInsertedId) {
         this.lastInsertedId = lastInsertedId;
+    }
+
+    public Integer getAffected() {
+        return affected;
+    }
+
+    public void setAffected(Integer affected) {
+        this.affected = affected;
     }
 
     public List<JsonObject> getRows() {

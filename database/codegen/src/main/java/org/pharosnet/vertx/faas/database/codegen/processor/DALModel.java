@@ -54,6 +54,15 @@ public class DALModel {
                     // id
                     TypeParameterElement idTypeParam = typeParameters.get(1);
                     TypeName idTypeName = TypeName.get(idTypeParam.asType());
+                    if (idTypeName.toString().contains("Integer")) {
+                        this.idTypeString = false;
+                    } else if (idTypeName.toString().contains("Double")) {
+                        this.idTypeString = false;
+                    } else if (idTypeName.toString().contains("Long")) {
+                        this.idTypeString = false;
+                    } else {
+                        this.idTypeString = true;
+                    }
                     this.idClassName = (ClassName) idTypeName;
                 }
             }
@@ -72,6 +81,7 @@ public class DALModel {
             throw new Exception(String.format("%s.%s 没有函数.", this.className.packageName(), this.className.simpleName()));
         }
         this.methodModels = new ArrayList<>();
+        int methodPos = 0;
         for (Element enclosedElement : enclosedElements) {
             if (enclosedElement instanceof ExecutableElement) {
                 ExecutableElement methodElement = (ExecutableElement) enclosedElement;
@@ -81,7 +91,8 @@ public class DALModel {
                 if (methodElement.getAnnotation(Query.class) == null) {
                     continue;
                 }
-                DALMethodModel methodModel = new DALMethodModel(methodElement);
+                methodPos ++;
+                DALMethodModel methodModel = new DALMethodModel(methodElement, methodPos);
                 this.methodModels.add(methodModel);
             }
         }
@@ -90,6 +101,7 @@ public class DALModel {
         }
     }
 
+    private boolean idTypeString;
     private boolean view;
     private ClassName className;
     private ClassName implClassName;
@@ -101,6 +113,14 @@ public class DALModel {
     private TableModel tableModel;
 
     private List<DALMethodModel> methodModels;
+
+    public boolean isIdTypeString() {
+        return idTypeString;
+    }
+
+    public void setIdTypeString(boolean idTypeString) {
+        this.idTypeString = idTypeString;
+    }
 
     public boolean isView() {
         return view;

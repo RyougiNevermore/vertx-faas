@@ -4,7 +4,7 @@ import io.vertx.core.Vertx;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class AbstractVALImpl<R, Id> implements AbstractVAL<R, Id> {
+public abstract class AbstractVALImpl<V, Id> implements AbstractVAL<V, Id> {
 
     private static final Logger log = LoggerFactory.getLogger(AbstractVALImpl.class);
 

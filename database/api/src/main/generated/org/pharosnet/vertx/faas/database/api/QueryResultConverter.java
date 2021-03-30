@@ -16,6 +16,11 @@ public class QueryResultConverter {
   public static void fromJson(Iterable<java.util.Map.Entry<String, Object>> json, QueryResult obj) {
     for (java.util.Map.Entry<String, Object> member : json) {
       switch (member.getKey()) {
+        case "affected":
+          if (member.getValue() instanceof Number) {
+            obj.setAffected(((Number)member.getValue()).intValue());
+          }
+          break;
         case "lastInsertedId":
           if (member.getValue() instanceof Number) {
             obj.setLastInsertedId(((Number)member.getValue()).longValue());
@@ -45,6 +50,9 @@ public class QueryResultConverter {
   }
 
   public static void toJson(QueryResult obj, java.util.Map<String, Object> json) {
+    if (obj.getAffected() != null) {
+      json.put("affected", obj.getAffected());
+    }
     if (obj.getLastInsertedId() != null) {
       json.put("lastInsertedId", obj.getLastInsertedId());
     }

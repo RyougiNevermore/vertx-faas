@@ -1,6 +1,7 @@
 package org.pharosnet.vertx.faas.database.codegen;
 
 import com.google.auto.service.AutoService;
+import com.squareup.javapoet.TypeName;
 import org.pharosnet.vertx.faas.database.codegen.annotations.DAL;
 import org.pharosnet.vertx.faas.database.codegen.annotations.EnableDAL;
 import org.pharosnet.vertx.faas.database.codegen.annotations.Table;
@@ -13,10 +14,7 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @SupportedAnnotationTypes({
@@ -30,11 +28,13 @@ import java.util.stream.Collectors;
 public class DatabaseCodeGenProcessor extends AbstractProcessor {
 
     private Messager messager;
+    private Set<String> dals;
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
         this.messager = processingEnv.getMessager();
+        this.dals = new HashSet<>();
     }
 
     @Override
@@ -73,8 +73,12 @@ public class DatabaseCodeGenProcessor extends AbstractProcessor {
                 .collect(Collectors.toList());
         TableGenerator tableGenerator = new TableGenerator(this.processingEnv, databaseType);
         for (TypeElement element : typeElements) {
+            if (this.dals.contains(TypeName.get(element.asType()).toString())) {
+                continue;
+            }
             TableModel tableModel = tableGenerator.generate(element);
             tableModelMap.put(tableModel.getClassName().packageName() + "." + tableModel.getClassName().simpleName(), tableModel);
+            this.dals.add(TypeName.get(element.asType()).toString());
         }
         return tableModelMap;
     }
@@ -88,7 +92,11 @@ public class DatabaseCodeGenProcessor extends AbstractProcessor {
 
         DALGenerator dalGenerator = new DALGenerator(processingEnv, tableModelMap, databaseType);
         for (TypeElement element : typeElements) {
+            if (this.dals.contains(TypeName.get(element.asType()).toString())) {
+                continue;
+            }
             dalGenerator.generate(element);
+            this.dals.add(TypeName.get(element.asType()).toString());
         }
     }
 }

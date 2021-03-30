@@ -348,6 +348,7 @@ public class DatabaseServiceImpl extends AbstractDatabaseService implements Data
             log.error("database service query in local server failed, arg = {}", arg.getArgs().encode(), e);
             handler.handle(Future.failedFuture("database service query in local server failed"));
         }).onSuccess(rows -> {
+
             QueryResult result = new QueryResult();
             if (needLastInsertedId) {
                 try {
@@ -359,6 +360,7 @@ public class DatabaseServiceImpl extends AbstractDatabaseService implements Data
                     return;
                 }
             }
+            result.setAffected(rows.rowCount());
             List<JsonObject> array = new ArrayList<>();
             for (Row row : rows) {
                 array.add(row.toJson());

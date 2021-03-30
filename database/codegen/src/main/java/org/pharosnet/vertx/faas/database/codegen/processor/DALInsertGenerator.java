@@ -4,13 +4,13 @@ import com.squareup.javapoet.*;
 import io.vertx.codegen.format.CamelCase;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
-import io.vertx.core.json.JsonObject;
 import org.pharosnet.vertx.faas.database.codegen.DatabaseType;
 
 import javax.lang.model.element.Modifier;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 public class DALInsertGenerator {
 
@@ -67,33 +67,32 @@ public class DALInsertGenerator {
                 .returns(
                         ParameterizedTypeName.get(
                                 ClassName.get(Future.class),
+                                ParameterizedTypeName.get(
+                                        ClassName.get(Optional.class),
+                                        dalModel.getTableClassName()
+                                )
+                        )
+                );
+
+        methodBuild.addCode("if (row == null) {\n");
+        methodBuild.addCode("\treturn Future.failedFuture(\"row is empty\");\n");
+        methodBuild.addCode("}\n");
+
+        methodBuild.addStatement("$T promise = $T.promise()",
+                ParameterizedTypeName.get(
+                        ClassName.get(Promise.class),
+                        ParameterizedTypeName.get(
+                                ClassName.get(Optional.class),
                                 dalModel.getTableClassName()
                         )
-                )
-                .addStatement("$T promise = $T.promise()",
-                        ParameterizedTypeName.get(
-                                ClassName.get(Promise.class),
-                                dalModel.getTableClassName()
-                        ),
-                        ClassName.get(Promise.class)
-                )
-                .addStatement("$T resultPromise = $T.promise()",
-                        ParameterizedTypeName.get(
-                                ClassName.get(Promise.class),
-                                ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryResult")
-                        ),
-                        ClassName.get(Promise.class)
-                )
-                .addCode("resultPromise.future()\n")
-                .addCode("\t.onSuccess(result -> {\n")
-                .addCode("\t\tpromise.complete(row);\n")
-                .addCode("\t})\n")
-                .addCode("\t.onFailure(e -> {\n")
-                .addCode("\t\tlog.error(\"insert failed, sql = {}, row = {}\", _insertSQL, row.toJson().encode(), e);\n")
-                .addCode("\t\tpromise.fail(e);\n")
-                .addCode("\t})\n")
-                .addCode("\n")
-                .addCode("$T args = new $T();\n", ClassName.get(JsonArray.class), ClassName.get(JsonArray.class));
+                ),
+                ClassName.get(Promise.class)
+        );
+        methodBuild.addCode("$T args = new $T();\n",
+                ClassName.get(JsonArray.class),
+                ClassName.get(JsonArray.class)
+        );
+
         for (ColumnModel columnModel : dalModel.getTableModel().getColumnModels()) {
             methodBuild.addCode(String.format("args.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
         }
@@ -103,9 +102,26 @@ public class DALInsertGenerator {
                 .addCode("arg.setArgs(args);\n")
                 .addCode("arg.setBatch(false);\n")
                 .addCode("arg.setSlaverMode(false);\n")
-                .addCode("arg.setNeedLastInsertedId(false);\n")
-                .addCode("this.service.query(context, arg, resultPromise);\n")
-                .addCode("return promise.future();");
+                .addCode("arg.setNeedLastInsertedId(false);\n");
+
+        methodBuild.addCode("this.service.query(context, arg, r -> {\n");
+        methodBuild.addCode("\tif (r.failed()) {\n");
+        methodBuild.addCode("\t\tlog.error(\"insert failed\", r.cause());\n");
+        methodBuild.addCode("\t\tpromise.fail(r.cause());\n");
+        methodBuild.addCode("\t\treturn;\n");
+        methodBuild.addCode("\t}\n");
+        methodBuild.addCode("\tQueryResult queryResult = r.result();\n", ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryResult"));
+        methodBuild.addCode("\tif (log.isDebugEnabled()) {\n");
+        methodBuild.addCode("\t\tlog.debug(\"insert succeed, affected = {} latency = {}\", queryResult.getAffected(), queryResult.getLatency());\n");
+        methodBuild.addCode("\t}\n");
+        methodBuild.addCode("\n");
+        methodBuild.addCode("\tif (queryResult.getAffected() == 0) {\n");
+        methodBuild.addCode("\t\tpromise.complete($T.empty());\n", ClassName.get(Optional.class));
+        methodBuild.addCode("\t\treturn;\n");
+        methodBuild.addCode("\t}\n");
+        methodBuild.addCode("\tpromise.complete($T.ofNullable(row));\n", ClassName.get(Optional.class));
+        methodBuild.addCode("});\n");
+        methodBuild.addCode("return promise.future();\n");
 
         return methodBuild;
     }
@@ -114,59 +130,76 @@ public class DALInsertGenerator {
         MethodSpec.Builder methodBuild = MethodSpec.methodBuilder("insert")
                 .addModifiers(Modifier.PUBLIC)
                 .addParameter(ClassName.get("org.pharosnet.vertx.faas.database.api", "SqlContext"), "context")
-                .addParameter(ParameterizedTypeName.get(ClassName.get(List.class), dalModel.getTableClassName()), "rows")
+                .addParameter(ParameterizedTypeName.get(ClassName.get(Stream.class), dalModel.getTableClassName()), "rows")
                 .returns(
                         ParameterizedTypeName.get(
                                 ClassName.get(Future.class),
                                 ParameterizedTypeName.get(
-                                        ClassName.get(List.class),
-                                        dalModel.getTableClassName()
+                                        ClassName.get(Optional.class),
+                                        ParameterizedTypeName.get(
+                                                ClassName.get(Stream.class),
+                                                dalModel.getTableClassName()
+                                        )
                                 )
                         )
-                )
-                .addStatement("$T promise = $T.promise()",
+                );
+
+        methodBuild.addCode("if (rows == null || rows.count() == 0) {\n");
+        methodBuild.addCode("\treturn Future.failedFuture(\"rows is empty\");\n");
+        methodBuild.addCode("}\n");
+
+        methodBuild.addStatement("$T promise = $T.promise()",
+                ParameterizedTypeName.get(
+                        ClassName.get(Promise.class),
                         ParameterizedTypeName.get(
-                                ClassName.get(Promise.class),
-                                ParameterizedTypeName.get(
-                                        ClassName.get(List.class),
-                                        dalModel.getTableClassName()
-                                )
-                        ),
-                        ClassName.get(Promise.class)
-                )
-                .addStatement("$T resultPromise = $T.promise()",
-                        ParameterizedTypeName.get(
-                                ClassName.get(Promise.class),
-                                ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryResult")
-                        ),
-                        ClassName.get(Promise.class)
-                )
-                .addCode("resultPromise.future()\n")
-                .addCode("\t.onSuccess(result -> {\n")
-                .addCode("\t\tpromise.complete(rows);\n")
-                .addCode("\t})\n")
-                .addCode("\t.onFailure(e -> {\n")
-                .addCode("\t\tlog.error(\"insert batch failed, sql = {}, row = {}\", _insertSQL, $T.encode(rows), e);\n", ClassName.get(Json.class))
-                .addCode("\t\tpromise.fail(e);\n")
-                .addCode("\t})\n")
-                .addCode("\n")
-                .addCode("$T args = new $T();\n", ClassName.get(JsonArray.class), ClassName.get(JsonArray.class))
-                .addCode("for ($T row : rows) {\n", dalModel.getTableClassName())
-                .addCode("\t$T arg = new $T();\b", ClassName.get(JsonArray.class), ClassName.get(JsonArray.class));
+                                ClassName.get(Stream.class),
+                                dalModel.getTableClassName()
+                        )
+                ),
+                ClassName.get(Promise.class)
+        );
+
+
+        methodBuild.addCode("$T args = new $T(\n",
+                ClassName.get(JsonArray.class),
+                ClassName.get(JsonArray.class)
+        );
+        methodBuild.addCode("\trows.map(row -> {\n");
+        methodBuild.addCode("\t\tJsonArray arg = new JsonArray();\n");
         for (ColumnModel columnModel : dalModel.getTableModel().getColumnModels()) {
-            methodBuild.addCode(String.format("\targ.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
+            methodBuild.addCode(String.format("\t\targ.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
         }
+        methodBuild.addCode("\t\treturn arg;\n");
+        methodBuild.addCode("\t}).collect(Collectors.toList()));\n");
+        methodBuild.addCode("\t\n");
         methodBuild
-                .addCode("\targs.add(arg);\n")
-                .addCode("}\n")
                 .addCode("$T arg = new $T();\n", ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg"), ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg"))
                 .addCode("arg.setQuery(_insertSQL);\n")
                 .addCode("arg.setArgs(args);\n")
                 .addCode("arg.setBatch(true);\n")
                 .addCode("arg.setSlaverMode(false);\n")
-                .addCode("arg.setNeedLastInsertedId(false);\n")
-                .addCode("this.service.query(context, arg, resultPromise);\n")
-                .addCode("return promise.future();");
+                .addCode("arg.setNeedLastInsertedId(false);\n");
+
+        methodBuild.addCode("this.service.query(context, arg, r -> {\n");
+        methodBuild.addCode("\tif (r.failed()) {\n");
+        methodBuild.addCode("\t\tlog.error(\"insert batch failed\", r.cause());\n");
+        methodBuild.addCode("\t\tpromise.fail(r.cause());\n");
+        methodBuild.addCode("\t\treturn;\n");
+        methodBuild.addCode("\t}\n");
+        methodBuild.addCode("\tQueryResult queryResult = r.result();\n", ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryResult"));
+        methodBuild.addCode("\tif (log.isDebugEnabled()) {\n");
+        methodBuild.addCode("\t\tlog.debug(\"insert batch succeed, affected = {} latency = {}\", queryResult.getAffected(), queryResult.getLatency());\n");
+        methodBuild.addCode("\t}\n");
+        methodBuild.addCode("\n");
+
+        methodBuild.addCode("\tif (queryResult.getAffected() != rows.count()) {\n");
+        methodBuild.addCode("\t\tpromise.complete($T.empty());\n", ClassName.get(Optional.class));
+        methodBuild.addCode("\t\treturn;\n");
+        methodBuild.addCode("\t}\n");
+        methodBuild.addCode("\tpromise.complete($T.ofNullable(rows));\n", ClassName.get(Optional.class));
+        methodBuild.addCode("});\n");
+        methodBuild.addCode("return promise.future();\n");
+
         return methodBuild;
     }
 
