@@ -2,14 +2,13 @@ package org.pharosnet.vertx.faas.codegen;
 
 import com.google.auto.service.AutoService;
 import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.TypeName;
+import io.vertx.codegen.annotations.DataObject;
 import io.vertx.codegen.annotations.ModuleGen;
 import org.pharosnet.vertx.faas.codegen.annotation.EnableOAS;
 import org.pharosnet.vertx.faas.codegen.annotation.Fn;
 import org.pharosnet.vertx.faas.codegen.annotation.FnInterceptor;
-import org.pharosnet.vertx.faas.codegen.generators.FnImpl;
-import org.pharosnet.vertx.faas.codegen.generators.ModuleFnGenerator;
-import org.pharosnet.vertx.faas.codegen.generators.ModuleImplGenerator;
-import org.pharosnet.vertx.faas.codegen.generators.OASGenerator;
+import org.pharosnet.vertx.faas.codegen.generators.*;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -53,6 +52,7 @@ public class FaaSCodeGenProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        this.generateDataObjectPlus(roundEnv);
         this.generateModuleFn(roundEnv);
         Map<String, List<Element>> moduleFnMap = this.generateModuleFnImpl(roundEnv);
         this.generateOAS(roundEnv, moduleFnMap);
@@ -182,4 +182,23 @@ public class FaaSCodeGenProcessor extends AbstractProcessor {
 
         return moduleFnMap;
     }
+
+    private void generateDataObjectPlus(RoundEnvironment roundEnv) {
+        Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(DataObject.class);
+        if (elements == null || elements.isEmpty()) {
+            return;
+        }
+        DataObjectPlusGenerator generator = new DataObjectPlusGenerator(this.messager, this.elementUtils, this.typeUtils, this.filer);
+        for (Element element : elements) {
+            try {
+                generator.generate(element);
+            } catch (Throwable exception) {
+                messager.printMessage(Diagnostic.Kind.ERROR, String.format("生成 %s DataObject Json Mapper失败。", element.getSimpleName().toString()));
+                messager.printMessage(Diagnostic.Kind.ERROR, exception.getMessage());
+                throw new RuntimeException(exception);
+            }
+
+        }
+    }
+
 }
