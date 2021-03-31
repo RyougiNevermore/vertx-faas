@@ -32,15 +32,15 @@ public class OASPathsGenerator {
 
     public OASPathsGenerator(Elements elementUtils) {
         this.elementUtils = elementUtils;
-        this.schemas = new HashMap<>();
+        this.componentGenerator = new OASComponentGenerator(elementUtils);
     }
 
     private Elements elementUtils;
+    private OASComponentGenerator componentGenerator;
 
-    private Map<String, Schema> schemas;
 
     public Map<String, Schema> getSchemas() {
-        return schemas;
+        return this.componentGenerator.schemaMap();
     }
 
     protected Paths generate(Map<String, List<Element>> moduleFnMap) throws Exception {
@@ -166,7 +166,7 @@ public class OASPathsGenerator {
                 if (requestBody != null) {
                     TypeElement requestBodyType = (TypeElement) fnParam.asType();
 
-                    String requestBodySchemaName = this.buildObjectSchema(requestBodyType);
+                    String requestBodySchemaName = this.componentGenerator.generate(requestBodyType);
 
                     String mediaTypeName = fn.consumes().trim();
                     if (mediaTypeName.length() == 0) {
@@ -230,7 +230,7 @@ public class OASPathsGenerator {
             } else if (returnTypeClassName.equals(ClassName.get(ZonedDateTime.class))) {
                 responseSchema = new StringSchema().format("date-time");
             } else {
-                String returnTypeSchemaName = this.buildObjectSchema(returnType);
+                String returnTypeSchemaName = this.componentGenerator.generate(returnType);
                 responseSchema = new ObjectSchema().$ref(String.format("#/components/schemas/%s", returnTypeSchemaName));
             }
 
@@ -258,310 +258,8 @@ public class OASPathsGenerator {
         return operation;
     }
 
-    // return schemas.key = name
-    private String buildObjectSchema(TypeElement element) throws Exception {
-        ApiModel apiModel = element.getAnnotation(ApiModel.class);
-        String name = apiModel.name().trim();
-        if (name.length() == 0) {
-            name = element.getSimpleName().toString();
-        }
-        Schema schema = this.getSchema(element);
-        if (schema != null) {
-            return name;
-        }
-
-        schema = new ObjectSchema();
-
-        schema.description(apiModel.description());
-
-        List<String> requiredProperties = new ArrayList<>();
-
-        List<? extends Element> requestBodyTypeEnclosedElements = element.getEnclosedElements();
-        for (Element requestBodyTypeEnclosedElement : requestBodyTypeEnclosedElements) {
-            ApiModelProperty apiModelProperty = requestBodyTypeEnclosedElement.getAnnotation(ApiModelProperty.class);
-            if (apiModelProperty != null) {
-                if (apiModelProperty.hidden()) {
-                    continue;
-                }
-                String propertyName = apiModelProperty.name().trim();
-                if (propertyName.length() == 0) {
-                    propertyName = requestBodyTypeEnclosedElement.getSimpleName().toString();
-                }
-                Schema property = null;
-//                Element propertyType =  requestBodyTypeEnclosedElement;
-                VariableElement propertyType = (VariableElement) requestBodyTypeEnclosedElement;
-                TypeName propertyTypeClassName = TypeName.get(propertyType.asType());
-                //  list
-                TypeName propertyTypeName = TypeName.get(propertyType.asType());
-                if (propertyTypeName instanceof ParameterizedTypeName) {
-                    ParameterizedTypeName propertyTypeParameterizedTypeName = (ParameterizedTypeName) propertyTypeName;
-                    if (propertyTypeParameterizedTypeName.rawType.equals(ClassName.get(List.class)) || propertyTypeParameterizedTypeName.rawType.equals(ClassName.get(Set.class))) {
-                        ClassName typeArgumentTypeName = (ClassName) propertyTypeParameterizedTypeName.typeArguments.get(0);
-
-                        if (propertyTypeClassName.equals(ClassName.get(String.class))) {
-                            property = new ArraySchema()
-                                    .items(new StringSchema());
-                        } else if (propertyTypeClassName.equals(ClassName.get(Integer.class)) || propertyTypeClassName.equals(ClassName.INT)) {
-                            property = new ArraySchema()
-                                    .items(new IntegerSchema().format("int32"));
-
-                        } else if (propertyTypeClassName.equals(ClassName.get(Long.class)) || propertyTypeClassName.equals(ClassName.LONG)) {
-                            property = new ArraySchema()
-                                    .items(new IntegerSchema().format("int64"));
-                        } else if (propertyTypeClassName.equals(ClassName.get(Float.class)) || propertyTypeClassName.equals(ClassName.FLOAT)) {
-                            property = new ArraySchema()
-                                    .items(new NumberSchema().format("float"));
-                        } else if (propertyTypeClassName.equals(ClassName.get(Double.class)) || propertyTypeClassName.equals(ClassName.DOUBLE)) {
-                            property = new ArraySchema()
-                                    .items(new NumberSchema().format("double"));
-                        } else if (propertyTypeClassName.equals(ClassName.get(Boolean.class)) || propertyTypeClassName.equals(ClassName.BOOLEAN)) {
-                            property = new ArraySchema()
-                                    .items(new BooleanSchema().format("double"));
-                        } else if (propertyTypeClassName.equals(ClassName.get(Instant.class))) {
-                            property = new ArraySchema()
-                                    .items(new StringSchema().format("date-time"));
-                        } else if (propertyTypeClassName.equals(ClassName.get(LocalDate.class))) {
-                            property = new ArraySchema()
-                                    .items(new StringSchema().format("date"));
-                        } else if (propertyTypeClassName.equals(ClassName.get(LocalDateTime.class))) {
-                            property = new ArraySchema()
-                                    .items(new StringSchema().format("date-time"));
-                        } else if (propertyTypeClassName.equals(ClassName.get(OffsetDateTime.class))) {
-                            property = new ArraySchema()
-                                    .items(new StringSchema().format("date-time"));
-                        } else if (propertyTypeClassName.equals(ClassName.get(ZonedDateTime.class))) {
-                            property = new ArraySchema()
-                                    .items(new StringSchema().format("date-time"));
-                        } else {
-                            TypeElement typeArgumentType = this.elementUtils.getTypeElement(typeArgumentTypeName.packageName() + "." + typeArgumentTypeName.simpleName());
-
-                            ApiModel propertyTypeApiModel = typeArgumentType.getAnnotation(ApiModel.class);
-                            if (propertyTypeApiModel == null) {
-                                throw new Exception("无法解析 " + element.getSimpleName().toString() + "." + propertyName + " 需要@ApiModel");
-                            }
-
-                            Schema propertyTypeSchema = this.getSchema((TypeElement) propertyType);
-                            String propertyTypeSchemaName;
-                            if (propertyTypeSchema == null) {
-                                propertyTypeSchemaName = this.buildObjectSchema((TypeElement) propertyType);
-                            } else {
-                                propertyTypeSchemaName = propertyTypeApiModel.name().trim();
-                                if (propertyTypeSchemaName.length() == 0) {
-                                    propertyTypeSchemaName = propertyType.getSimpleName().toString();
-                                }
-
-                            }
-
-                            property = new ArraySchema()
-                                    .items(new ObjectSchema().$ref(String.format("#/components/schemas/%s", propertyTypeSchemaName)));
-
-                        }
-
-                    }
-                } else {
-                    if (propertyTypeClassName.equals(ClassName.get(String.class))) {
-                        property = new StringSchema();
-                        // valid
-                        NotNull notNull = requestBodyTypeEnclosedElement.getAnnotation(NotNull.class);
-                        NotBlank notBlank = requestBodyTypeEnclosedElement.getAnnotation(NotBlank.class);
-                        if (notNull != null || notBlank != null) {
-                            requiredProperties.add(propertyName);
-                        }
-                        Pattern pattern = requestBodyTypeEnclosedElement.getAnnotation(Pattern.class);
-                        if (pattern != null) {
-                            property.pattern(pattern.regexp());
-                        }
-                    } else if (propertyTypeClassName.equals(ClassName.get(Integer.class)) || propertyTypeClassName.equals(ClassName.INT)) {
-                        property = new IntegerSchema();
-                        property.format("int32");
-                        // valid
-                        NotNull notNull = requestBodyTypeEnclosedElement.getAnnotation(NotNull.class);
-                        if (notNull != null) {
-                            requiredProperties.add(propertyName);
-                        }
-                        Max max = requestBodyTypeEnclosedElement.getAnnotation(Max.class);
-                        if (max != null) {
-                            property.maximum(new BigDecimal(max.value()));
-                        }
-                        Min min = requestBodyTypeEnclosedElement.getAnnotation(Min.class);
-                        if (min != null) {
-                            property.minimum(new BigDecimal(min.value()));
-                        }
-                    } else if (propertyTypeClassName.equals(ClassName.get(Long.class)) || propertyTypeClassName.equals(ClassName.LONG)) {
-                        property = new IntegerSchema();
-                        property.format("int64");
-                        // valid
-                        NotNull notNull = requestBodyTypeEnclosedElement.getAnnotation(NotNull.class);
-                        if (notNull != null) {
-                            requiredProperties.add(propertyName);
-                        }
-                        Max max = requestBodyTypeEnclosedElement.getAnnotation(Max.class);
-                        if (max != null) {
-                            property.maximum(new BigDecimal(max.value()));
-                        }
-                        Min min = requestBodyTypeEnclosedElement.getAnnotation(Min.class);
-                        if (min != null) {
-                            property.minimum(new BigDecimal(min.value()));
-                        }
-                    } else if (propertyTypeClassName.equals(ClassName.get(Float.class)) || propertyTypeClassName.equals(ClassName.FLOAT)) {
-                        property = new NumberSchema();
-                        property.format("float");
-                        // valid
-                        NotNull notNull = requestBodyTypeEnclosedElement.getAnnotation(NotNull.class);
-                        if (notNull != null) {
-                            requiredProperties.add(propertyName);
-                        }
-                        Max max = requestBodyTypeEnclosedElement.getAnnotation(Max.class);
-                        if (max != null) {
-                            property.maximum(new BigDecimal(max.value()));
-                        }
-                        Min min = requestBodyTypeEnclosedElement.getAnnotation(Min.class);
-                        if (min != null) {
-                            property.minimum(new BigDecimal(min.value()));
-                        }
-                        DecimalMax decimalMax = requestBodyTypeEnclosedElement.getAnnotation(DecimalMax.class);
-                        if (decimalMax != null) {
-                            property.maximum(new BigDecimal(decimalMax.value()));
-                        }
-                        DecimalMin decimalMin = requestBodyTypeEnclosedElement.getAnnotation(DecimalMin.class);
-                        if (decimalMin != null) {
-                            property.maximum(new BigDecimal(decimalMin.value()));
-                        }
-                    } else if (propertyTypeClassName.equals(ClassName.get(Double.class)) || propertyTypeClassName.equals(ClassName.DOUBLE)) {
-                        property = new NumberSchema();
-                        property.format("double");
-                        // valid
-                        NotNull notNull = requestBodyTypeEnclosedElement.getAnnotation(NotNull.class);
-                        if (notNull != null) {
-                            requiredProperties.add(propertyName);
-                        }
-                        Max max = requestBodyTypeEnclosedElement.getAnnotation(Max.class);
-                        if (max != null) {
-                            property.maximum(new BigDecimal(max.value()));
-                        }
-                        Min min = requestBodyTypeEnclosedElement.getAnnotation(Min.class);
-                        if (min != null) {
-                            property.minimum(new BigDecimal(min.value()));
-                        }
-                        DecimalMax decimalMax = requestBodyTypeEnclosedElement.getAnnotation(DecimalMax.class);
-                        if (decimalMax != null) {
-                            property.maximum(new BigDecimal(decimalMax.value()));
-                        }
-                        DecimalMin decimalMin = requestBodyTypeEnclosedElement.getAnnotation(DecimalMin.class);
-                        if (decimalMin != null) {
-                            property.maximum(new BigDecimal(decimalMin.value()));
-                        }
-                    } else if (propertyTypeClassName.equals(ClassName.get(Boolean.class)) || propertyTypeClassName.equals(ClassName.BOOLEAN)) {
-                        property = new BooleanSchema();
-                        // valid
-                        NotNull notNull = requestBodyTypeEnclosedElement.getAnnotation(NotNull.class);
-                        if (notNull != null) {
-                            requiredProperties.add(propertyName);
-                        }
-                    } else if (propertyTypeClassName.equals(ClassName.get(Instant.class))) {
-                        property = new StringSchema();
-                        property.format("date-time");
-                        // valid
-                        NotNull notNull = requestBodyTypeEnclosedElement.getAnnotation(NotNull.class);
-                        if (notNull != null) {
-                            requiredProperties.add(propertyName);
-                        }
-                    } else if (propertyTypeClassName.equals(ClassName.get(LocalDate.class))) {
-                        property = new StringSchema();
-                        property.format("date");
-                        // valid
-                        NotNull notNull = requestBodyTypeEnclosedElement.getAnnotation(NotNull.class);
-                        if (notNull != null) {
-                            requiredProperties.add(propertyName);
-                        }
-                    } else if (propertyTypeClassName.equals(ClassName.get(LocalDateTime.class))) {
-                        property = new StringSchema();
-                        property.format("date-time");
-                        // valid
-                        NotNull notNull = requestBodyTypeEnclosedElement.getAnnotation(NotNull.class);
-                        if (notNull != null) {
-                            requiredProperties.add(propertyName);
-                        }
-                    } else if (propertyTypeClassName.equals(ClassName.get(OffsetDateTime.class))) {
-                        property = new StringSchema();
-                        property.format("date-time");
-                        // valid
-                        NotNull notNull = requestBodyTypeEnclosedElement.getAnnotation(NotNull.class);
-                        if (notNull != null) {
-                            requiredProperties.add(propertyName);
-                        }
-                    } else if (propertyTypeClassName.equals(ClassName.get(ZonedDateTime.class))) {
-                        property = new StringSchema();
-                        property.format("date-time");
-                        // valid
-                        NotNull notNull = requestBodyTypeEnclosedElement.getAnnotation(NotNull.class);
-                        if (notNull != null) {
-                            requiredProperties.add(propertyName);
-                        }
-                    } else if (propertyType.getKind().equals(ElementKind.ENUM)) {
-                        // enum
-                        property = new StringSchema();
-                        // valid
-                        NotNull notNull = requestBodyTypeEnclosedElement.getAnnotation(NotNull.class);
-                        if (notNull != null) {
-                            requiredProperties.add(propertyName);
-                        }
-                        List<? extends Element> enumTypeElements = propertyType.getEnclosedElements();
-                        if (enumTypeElements != null) {
-                            for (Element enumTypeElement : enumTypeElements) {
-                                if (enumTypeElement.getKind().equals(ElementKind.ENUM_CONSTANT)) {
-                                    property.addEnumItemObject(enumTypeElement.getSimpleName().toString());
-                                }
-                            }
-                        }
-                    } else {
-                        ClassName propertyTypeClassName0 = (ClassName)TypeName.get(propertyType.asType());
-                        TypeElement propertyTypeClass = this.elementUtils.getTypeElement(propertyTypeClassName0.packageName() + "." + propertyTypeClassName0.simpleName());
-                        // object
-                        ApiModel propertyTypeApiModel = propertyTypeClass.getAnnotation(ApiModel.class);
-                        if (propertyTypeApiModel == null) {
-                            throw new Exception("无法解析 " + element.getSimpleName().toString() + "." + propertyName + " 需要@ApiModel");
-                        }
-
-                        Schema propertyTypeSchema = this.getSchema(propertyTypeClass);
-                        String propertyTypeSchemaName;
-                        if (propertyTypeSchema == null) {
-                            propertyTypeSchemaName = this.buildObjectSchema(propertyTypeClass);
-                        } else {
-                            propertyTypeSchemaName = propertyTypeApiModel.name().trim();
-                            if (propertyTypeSchemaName.length() == 0) {
-                                propertyTypeSchemaName = propertyTypeClass.getSimpleName().toString();
-                            }
-
-                        }
-                        property = new ObjectSchema()
-                                .$ref(String.format("#/components/schemas/%s", propertyTypeSchemaName));
-                    }
-                }
 
 
-                if (property == null) {
-                    throw new Exception("无法解析 " + element.getSimpleName().toString() + "." + propertyName);
-                }
-                property.description(apiModelProperty.description());
-                schema.addProperties(propertyName, property);
-            }
-        }
-        if (!requiredProperties.isEmpty()) {
-            schema.required(requiredProperties);
-        }
 
-        this.schemas.put(name, schema);
-        return name;
-    }
-
-    private Schema getSchema(TypeElement element) {
-        ApiModel apiModel = element.getAnnotation(ApiModel.class);
-        String name = apiModel.name().trim();
-        if (name.length() == 0) {
-            name = element.getSimpleName().toString();
-        }
-        return this.schemas.get(name);
-    }
 
 }

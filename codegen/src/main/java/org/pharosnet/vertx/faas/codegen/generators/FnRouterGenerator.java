@@ -3,16 +3,12 @@ package org.pharosnet.vertx.faas.codegen.generators;
 import com.squareup.javapoet.*;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
-import org.pharosnet.vertx.faas.codegen.annotation.FnRouter;
-import org.pharosnet.vertx.faas.codegen.annotation.PathParam;
-import org.pharosnet.vertx.faas.codegen.annotation.QueryParam;
-import org.pharosnet.vertx.faas.codegen.annotation.RequestBody;
+import org.pharosnet.vertx.faas.codegen.annotation.*;
 import org.pharosnet.vertx.faas.codegen.http.HttpMethod;
 
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Modifier;
-import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
@@ -69,7 +65,7 @@ public class FnRouterGenerator {
         // build()
         MethodSpec.Builder buildMethod = MethodSpec.methodBuilder("build")
                 .addModifiers(Modifier.PUBLIC)
-                .addParameter(ClassName.get("io.vertx.ext.web","Router"), "router")
+                .addParameter(ClassName.get("io.vertx.ext.web", "Router"), "router")
                 .returns(ClassName.VOID);
         String path = Optional.of(fnUnit.getFn().path()).orElse("").trim();
         if (path.length() == 0) {
@@ -114,7 +110,7 @@ public class FnRouterGenerator {
         // handle()
         MethodSpec.Builder handleMethod = MethodSpec.methodBuilder("handle")
                 .addModifiers(Modifier.PRIVATE)
-                .addParameter(ClassName.get("io.vertx.ext.web","RoutingContext"), "routingContext")
+                .addParameter(ClassName.get("io.vertx.ext.web", "RoutingContext"), "routingContext")
                 .returns(ClassName.VOID);
 
         handleMethod.addStatement("$T promise = $T.promise()",
@@ -143,19 +139,52 @@ public class FnRouterGenerator {
                 String queryParamKey = queryParam.value();
                 if (ClassName.get(parameter.asType()).equals(ClassName.get(String.class))) {
                     handleMethod.addStatement(String.format("String %s = null", paramName));
-                    handleMethod.addStatement(String.format("List<String> %sValues = routingContext.queryParam(\"%s\")", paramName, queryParamKey));
+                    handleMethod.addStatement(String.format("$T %sValues = routingContext.queryParam(\"%s\")", paramName, queryParamKey),
+                            ParameterizedTypeName.get(
+                                    ClassName.get(List.class),
+                                    ClassName.get(String.class)
+                            )
+                    );
                     handleMethod.addCode(String.format("if(%sValues != null && !%sValues.isEmpty()) { \n", paramName, paramName));
                     handleMethod.addCode(String.format("\t%s = %sValues.get(0); \n", paramName, paramName));
                     handleMethod.addCode("} \n");
                 } else if (ClassName.get(parameter.asType()).equals(ParameterizedTypeName.get(
                         ClassName.get(List.class), ClassName.get(String.class)
                 ))) {
-                    handleMethod.addStatement(String.format("List<String> %s = routingContext.queryParam(\"%s\")", paramName, queryParamKey));
+                    handleMethod.addStatement(String.format("$T %s = routingContext.queryParam(\"%s\")", paramName, queryParamKey),
+                            ParameterizedTypeName.get(
+                                    ClassName.get(List.class),
+                                    ClassName.get(String.class)
+                            )
+                    );
                 } else {
                     throw new RuntimeException(String.format("%s.%s 中的参数 %s 必须是String或List<String>", pkg, fnClassName, paramName));
                 }
                 continue;
             }
+
+            HeaderParam headerParam = parameter.getAnnotation(HeaderParam.class);
+            if (headerParam != null) {
+                handleMethod.addStatement(String.format("String %s = routingContext.request().getHeader(\"%s\")",
+                        paramName, paramName
+                ));
+                continue;
+            }
+
+            CookieParam cookieParam = parameter.getAnnotation(CookieParam.class);
+            if (cookieParam != null) {
+                handleMethod.addStatement(String.format("String %s = null", paramName));
+                handleMethod.addCode(String.format("$T %sCookie = routingContext.getCookie(\"%s\");\n",
+                        paramName, paramName
+                        ),
+                        ClassName.get("io.vertx.core.http", "Cookie")
+                );
+                handleMethod.addCode(String.format("if (%sCookie != null) {\n", paramName));
+                handleMethod.addCode(String.format("\t%s = %sCookie.getValue();\n", paramName, paramName));
+                handleMethod.addCode("}\n");
+                continue;
+            }
+
             RequestBody requestBody = parameter.getAnnotation(RequestBody.class);
             if (requestBody != null) {
                 if ("io.vertx.core.json.JsonArray".equals(parameter.asType().toString())) {
