@@ -2,9 +2,7 @@ package org.pharosnet.vertx.faas.codegen;
 
 import com.google.auto.service.AutoService;
 import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.TypeName;
 import io.vertx.codegen.annotations.DataObject;
-import io.vertx.codegen.annotations.ModuleGen;
 import org.pharosnet.vertx.faas.codegen.annotation.EnableOAS;
 import org.pharosnet.vertx.faas.codegen.annotation.Fn;
 import org.pharosnet.vertx.faas.codegen.annotation.FnInterceptor;
@@ -39,7 +37,6 @@ public class FaaSCodeGenProcessor extends AbstractProcessor {
     private Set<String> fns;
     private Set<String> fnImpls;
     private Set<String> fnModules;
-
 
 
     @Override
