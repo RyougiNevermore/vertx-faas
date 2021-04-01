@@ -14,10 +14,7 @@ import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.vertx.codegen.format.CamelCase;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
-import org.pharosnet.vertx.faas.codegen.annotation.Fn;
-import org.pharosnet.vertx.faas.codegen.annotation.PathParam;
-import org.pharosnet.vertx.faas.codegen.annotation.QueryParam;
-import org.pharosnet.vertx.faas.codegen.annotation.RequestBody;
+import org.pharosnet.vertx.faas.codegen.annotation.*;
 import org.pharosnet.vertx.faas.codegen.annotation.oas.ApiModel;
 import org.pharosnet.vertx.faas.codegen.annotation.oas.ApiModelProperty;
 import org.pharosnet.vertx.faas.codegen.http.HttpMethod;
@@ -145,6 +142,52 @@ public class OASPathsGenerator {
                     parameter.in("query");
                     parameter.name(queryParam.value());
                     parameter.description(queryParam.description());
+
+                    // valid required
+                    NotNull notNull = fnParam.getAnnotation(NotNull.class);
+                    NotBlank notBlank = fnParam.getAnnotation(NotBlank.class);
+                    if (notNull != null || notBlank != null) {
+                        parameter.required(true);
+                    }
+                    // valid pattern
+                    Pattern pattern = fnParam.getAnnotation(Pattern.class);
+                    if (pattern != null) {
+                        parameter.addExtension("pattern", pattern.regexp());
+                    }
+
+                    operation.addParametersItem(parameter);
+                }
+
+                // header param
+                HeaderParam headerParam = fnParam.getAnnotation(HeaderParam.class);
+                if (headerParam != null) {
+                    Parameter parameter = new Parameter();
+                    parameter.in("header");
+                    parameter.name(headerParam.value());
+                    parameter.description(headerParam.description());
+
+                    // valid required
+                    NotNull notNull = fnParam.getAnnotation(NotNull.class);
+                    NotBlank notBlank = fnParam.getAnnotation(NotBlank.class);
+                    if (notNull != null || notBlank != null) {
+                        parameter.required(true);
+                    }
+                    // valid pattern
+                    Pattern pattern = fnParam.getAnnotation(Pattern.class);
+                    if (pattern != null) {
+                        parameter.addExtension("pattern", pattern.regexp());
+                    }
+
+                    operation.addParametersItem(parameter);
+                }
+
+                // cookie param
+                CookieParam cookieParam = fnParam.getAnnotation(CookieParam.class);
+                if (cookieParam != null) {
+                    Parameter parameter = new Parameter();
+                    parameter.in("cookie");
+                    parameter.name(cookieParam.value());
+                    parameter.description(cookieParam.description());
 
                     // valid required
                     NotNull notNull = fnParam.getAnnotation(NotNull.class);
