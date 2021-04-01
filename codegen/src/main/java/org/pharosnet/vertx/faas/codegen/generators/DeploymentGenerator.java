@@ -1,19 +1,20 @@
 package org.pharosnet.vertx.faas.codegen.generators;
 
 import com.squareup.javapoet.*;
-import io.vertx.codegen.annotations.ModuleGen;
 import io.vertx.codegen.format.CamelCase;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
 import org.pharosnet.vertx.faas.codegen.annotation.FnDeployment;
+import org.pharosnet.vertx.faas.codegen.annotation.FnModule;
 
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
+import java.util.ArrayList;
 import java.util.List;
 
 public class DeploymentGenerator {
@@ -28,23 +29,20 @@ public class DeploymentGenerator {
     private Elements elementUtils;
     private Filer filer;
 
-    public void generate(String pkg, ModuleGen moduleGen) throws Exception {
-        String fnDeploymentClassName = CamelCase.INSTANCE.format(List.of(moduleGen.name(), "deployment"));
-        String fnVerticleClassName = CamelCase.INSTANCE.format(List.of(moduleGen.name(), "verticle"));
+    public void generate(String pkg, FnModule fnModule) throws Exception {
+        List<String> verticleName = new ArrayList<>(List.of(fnModule.name().split("-")));
+        verticleName.add("verticle");
+        List<String> deploymentName = new ArrayList<>(List.of(fnModule.name().split("-")));
+        deploymentName.add("deployment");
 
-        String fnMessageConsumerRegisterClassName = String.format("%sMessageConsumerRegister", CamelCase.INSTANCE.format(List.of(moduleGen.name())));
+        String fnDeploymentClassName = CamelCase.INSTANCE.format(deploymentName);
+        String fnVerticleClassName = CamelCase.INSTANCE.format(verticleName);
+
 
         // construct
         MethodSpec.Builder constructor = MethodSpec.constructorBuilder()
                 .addModifiers(Modifier.PUBLIC)
-                .addStatement("super()")
-                .addStatement("super.setRegister(new $T())", ClassName.get(pkg, fnMessageConsumerRegisterClassName));
-
-        // constructorByRegister
-        MethodSpec.Builder constructorByRegister = MethodSpec.constructorBuilder()
-                .addModifiers(Modifier.PUBLIC)
-                .addParameter(ClassName.get("org.pharosnet.vertx.faas.core.components", "MessageConsumerRegister"), "register")
-                .addStatement("super(register)");
+                .addStatement("super()");
 
 
         // deploy()
@@ -52,10 +50,17 @@ public class DeploymentGenerator {
                 .addModifiers(Modifier.PUBLIC)
                 .addParameter(ClassName.get(Vertx.class), "vertx")
                 .addParameter(ClassName.get(JsonObject.class), "config")
-                .addStatement("$T deploymentOptions = new $T()", ClassName.get(DeploymentOptions.class), ClassName.get(DeploymentOptions.class))
-                .addStatement("deploymentOptions.setConfig(config)")
-                .addStatement("return vertx.deployVerticle(new $T(super.getRegister()), deploymentOptions)", ClassName.get(pkg, fnVerticleClassName))
                 .returns(ParameterizedTypeName.get(ClassName.get(Future.class), ClassName.get(String.class)));
+
+        deployMethod.addStatement("$T deploymentOptions = new $T()", ClassName.get(DeploymentOptions.class), ClassName.get(DeploymentOptions.class));
+        deployMethod.addStatement("deploymentOptions.setConfig(config)");
+        if (fnModule.instances() > 1) {
+            deployMethod.addStatement(String.format("deploymentOptions.setInstances(%d)", fnModule.instances()));
+        }
+        if (fnModule.workers() > 0) {
+            deployMethod.addStatement(String.format("deploymentOptions.setWorker(true).setWorkerPoolSize(%d)", fnModule.workers()));
+        }
+        deployMethod.addStatement("return vertx.deployVerticle($T.class, deploymentOptions)", ClassName.get(pkg, fnVerticleClassName));
 
 
         // class
@@ -64,7 +69,6 @@ public class DeploymentGenerator {
                 .addModifiers(Modifier.PUBLIC)
                 .superclass(ClassName.get("org.pharosnet.vertx.faas.core.components", "ComponentDeployment"))
                 .addMethod(constructor.build())
-                .addMethod(constructorByRegister.build())
                 .addMethod(deployMethod.build())
                 .build();
 

@@ -10,7 +10,7 @@ import org.pharosnet.vertx.faas.engine.http.router.AbstractHttpRouter;
 public class HttpDeployment extends ComponentDeployment {
 
     public HttpDeployment(AbstractHttpRouter httpRouter) {
-        super(null);
+        super();
         this.httpRouter = httpRouter;
     }
 
@@ -20,7 +20,7 @@ public class HttpDeployment extends ComponentDeployment {
     public Future<String> deploy(Vertx vertx, JsonObject config) {
         DeploymentOptions deploymentOptions = new DeploymentOptions();
         deploymentOptions.setConfig(config);
-        return vertx.deployVerticle(new HttpVerticle(super.getRegister(), httpRouter), deploymentOptions);
+        return vertx.deployVerticle(new HttpVerticle(httpRouter), deploymentOptions);
     }
 
 }

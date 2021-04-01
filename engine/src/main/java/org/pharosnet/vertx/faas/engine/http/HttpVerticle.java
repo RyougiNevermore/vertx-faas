@@ -13,28 +13,12 @@ public class HttpVerticle extends AbstractVerticle {
 
     private static final Logger log = LoggerFactory.getLogger(HttpVerticle.class);
 
-    public HttpVerticle(MessageConsumerRegister register, AbstractHttpRouter httpRouter) {
-        this.register = register;
+    public HttpVerticle(AbstractHttpRouter httpRouter) {
         this.httpRouter = httpRouter;
     }
 
     private Http http;
     private final AbstractHttpRouter httpRouter;
-    private final MessageConsumerRegister register;
-
-    public void register() {
-        if (this.register == null) {
-            return;
-        }
-        register.register(this.vertx);
-    }
-
-    public Future<Void> unregister() {
-        if (this.register == null) {
-            return Future.succeededFuture();
-        }
-        return this.register.unregister();
-    }
 
     @Override
     public void start(Promise<Void> promise) throws Exception {
@@ -46,7 +30,6 @@ public class HttpVerticle extends AbstractVerticle {
 
         this.http.run(this.httpRouter)
                 .onSuccess(r -> {
-                    this.register();
                     promise.complete();
                 })
                 .onFailure(e -> {
@@ -57,8 +40,7 @@ public class HttpVerticle extends AbstractVerticle {
 
     @Override
     public void stop(Promise<Void> promise) throws Exception {
-        this.unregister()
-                .compose(r -> this.http.close())
+        this.http.close()
                 .onSuccess(r -> {
                     promise.complete();
                 })
@@ -66,7 +48,6 @@ public class HttpVerticle extends AbstractVerticle {
                     log.error("关闭HTTP服务失败。", e);
                     promise.fail("关闭HTTP服务失败。");
                 });
-
     }
 
 }

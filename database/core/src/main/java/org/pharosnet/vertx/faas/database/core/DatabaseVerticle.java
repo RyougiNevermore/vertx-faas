@@ -13,21 +13,22 @@ public class DatabaseVerticle extends AbstractVerticle {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseVerticle.class);
 
-    public DatabaseVerticle(MessageConsumerRegister register, ServiceDiscovery discovery) {
-        this.register = register;
+    public DatabaseVerticle() {
+        this.discovery = null;
+    }
+
+    public DatabaseVerticle(ServiceDiscovery discovery) {
         this.discovery = discovery;
     }
 
     private final ServiceDiscovery discovery;
-    private final MessageConsumerRegister register;
+    private MessageConsumerRegister register;
 
     private Databases databases;
 
 
     public void register() {
-        if (this.register == null) {
-            return;
-        }
+        this.register = new DatabaseMessageConsumerRegister();
         this.register.register(this.vertx);
     }
 

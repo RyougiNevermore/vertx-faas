@@ -1,17 +1,18 @@
 package org.pharosnet.vertx.faas.codegen.generators;
 
 import com.squareup.javapoet.*;
-import io.vertx.codegen.annotations.ModuleGen;
 import io.vertx.codegen.format.CamelCase;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
+import org.pharosnet.vertx.faas.codegen.annotation.FnModule;
 
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
+import java.util.ArrayList;
 import java.util.List;
 
 public class VerticleGenerator {
@@ -26,27 +27,27 @@ public class VerticleGenerator {
     private Elements elementUtils;
     private Filer filer;
 
-    public void generate(String pkg, ModuleGen moduleGen) throws Exception {
-        String fnVerticleClassName = CamelCase.INSTANCE.format(List.of(moduleGen.name(), "verticle"));
+    public void generate(String pkg, FnModule fnModule) throws Exception {
+        List<String> nameItems = new ArrayList<>(List.of(fnModule.name().split("-")));
+        String fnMessageConsumerRegisterClassName = String.format("%sMessageConsumerRegister", CamelCase.INSTANCE.format(nameItems));
+
+        nameItems.add("verticle");
+        String fnVerticleClassName = CamelCase.INSTANCE.format(nameItems);
+
 
         // construct
         MethodSpec.Builder constructor = MethodSpec.constructorBuilder()
-                .addModifiers(Modifier.PUBLIC)
-                .addParameter(ClassName.get("org.pharosnet.vertx.faas.core.components", "MessageConsumerRegister"), "register")
-                .addStatement("this.register = register");
+                .addModifiers(Modifier.PUBLIC);
 
         // register
         FieldSpec.Builder registerField = FieldSpec.builder(
                 ClassName.get("org.pharosnet.vertx.faas.core.components", "MessageConsumerRegister"), "register",
-                Modifier.PRIVATE, Modifier.FINAL);
-
+                Modifier.PRIVATE);
 
         // register()
         MethodSpec.Builder registerMethod = MethodSpec.methodBuilder("register")
                 .addModifiers(Modifier.PRIVATE)
-                .addCode("if (this.register == null) {\n")
-                .addCode("\treturn;\n")
-                .addCode("}\n")
+                .addCode("this.register = new $T();\n", ClassName.get(pkg, fnMessageConsumerRegisterClassName))
                 .addCode("this.register.register(this.vertx);")
                 .returns(ClassName.VOID);
 

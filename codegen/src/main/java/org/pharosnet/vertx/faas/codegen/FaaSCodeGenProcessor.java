@@ -8,6 +8,7 @@ import io.vertx.codegen.annotations.ModuleGen;
 import org.pharosnet.vertx.faas.codegen.annotation.EnableOAS;
 import org.pharosnet.vertx.faas.codegen.annotation.Fn;
 import org.pharosnet.vertx.faas.codegen.annotation.FnInterceptor;
+import org.pharosnet.vertx.faas.codegen.annotation.FnModule;
 import org.pharosnet.vertx.faas.codegen.generators.*;
 
 import javax.annotation.processing.*;
@@ -22,8 +23,8 @@ import java.util.*;
 
 @SupportedAnnotationTypes({
         "org.pharosnet.vertx.faas.codegen.annotation.EnableOAS",
+        "org.pharosnet.vertx.faas.codegen.annotation.FnModule",
         "org.pharosnet.vertx.faas.codegen.annotation.Fn",
-        "io.vertx.codegen.annotations.ModuleGen",
 })
 @SupportedOptions({"codegen.output"})
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
@@ -37,6 +38,8 @@ public class FaaSCodeGenProcessor extends AbstractProcessor {
 
     private Set<String> fns;
     private Set<String> fnImpls;
+    private Set<String> fnModules;
+
 
 
     @Override
@@ -48,6 +51,7 @@ public class FaaSCodeGenProcessor extends AbstractProcessor {
         this.typeUtils = processingEnv.getTypeUtils();
         this.fns = new HashSet<>();
         this.fnImpls = new HashSet<>();
+        this.fnModules = new HashSet<>();
     }
 
     @Override
@@ -77,57 +81,43 @@ public class FaaSCodeGenProcessor extends AbstractProcessor {
 
     private void generateModuleFn(RoundEnvironment roundEnv) {
 
-        Set<? extends Element> moduleElements = roundEnv.getElementsAnnotatedWith(ModuleGen.class);
-        if (moduleElements == null || moduleElements.isEmpty()) {
+        Set<? extends Element> fnElements = roundEnv.getElementsAnnotatedWith(Fn.class);
+        if (fnElements == null || fnElements.isEmpty()) {
             return;
         }
-        for (Element moduleElement : moduleElements) {
-            String packageName = elementUtils.getPackageOf(moduleElement).getQualifiedName().toString();
-            ModuleGen moduleGen = moduleElement.getAnnotation(ModuleGen.class);
-            List<Element> fnElements = new ArrayList<>();
-            List<? extends Element> classElements = elementUtils.getPackageOf(moduleElement).getEnclosedElements();
-            for (Element classElement : classElements) {
-                boolean isType = false;
-                if (classElement instanceof TypeElement) {
-                    isType = true;
-                }
-                if (!isType) {
-                    continue;
-                }
-                TypeElement typeElement = (TypeElement) classElement;
-                Fn fn = typeElement.getAnnotation(Fn.class);
-                if (fn != null) {
-                    String fnName = ClassName.get(typeElement).packageName() + "." + ClassName.get(typeElement).simpleName();
-                    if (this.fns.contains(fnName)) {
-                        continue;
-                    }
-                    this.fns.add(fnName);
-                    fnElements.add(classElement);
-                }
+        for (Element fnElement : fnElements) {
+            if (this.fns.contains(fnElement.getSimpleName().toString())) {
+                continue;
             }
-            if (!fnElements.isEmpty()) {
-                try {
-                    new ModuleFnGenerator(this.messager, this.elementUtils, this.filer).generate(packageName, moduleGen, fnElements);
-                } catch (Throwable exception) {
-                    messager.printMessage(Diagnostic.Kind.ERROR, String.format("生成 %s:%s 模块的函数失败。", moduleGen.groupPackage(), moduleGen.name()));
-                    messager.printMessage(Diagnostic.Kind.ERROR, exception.getMessage());
-                    throw new RuntimeException(exception);
-                }
+            String packageName = elementUtils.getPackageOf(fnElement).getQualifiedName().toString();
+            try {
+                FnGenerator fnGenerator = new FnGenerator(this.messager, this.elementUtils, (TypeElement) fnElement);
+                fnGenerator.generate(this.filer);
+                this.fns.add(fnElement.getSimpleName().toString());
+            } catch (Throwable exception) {
+                messager.printMessage(Diagnostic.Kind.ERROR, String.format("生成 %s:%s 函数失败。", packageName, fnElement.getSimpleName().toString()));
+                messager.printMessage(Diagnostic.Kind.ERROR, exception.getMessage());
+                throw new RuntimeException(exception);
             }
-
         }
-
     }
 
     private Map<String, List<Element>> generateModuleFnImpl(RoundEnvironment roundEnv) {
         Map<String, List<Element>> moduleFnMap = new HashMap<>();
-        Set<? extends Element> moduleElements = roundEnv.getElementsAnnotatedWith(ModuleGen.class);
+        Set<? extends Element> moduleElements = roundEnv.getElementsAnnotatedWith(FnModule.class);
         if (moduleElements == null || moduleElements.isEmpty()) {
             return moduleFnMap;
         }
         for (Element moduleElement : moduleElements) {
             String packageName = elementUtils.getPackageOf(moduleElement).getQualifiedName().toString();
-            ModuleGen moduleGen = moduleElement.getAnnotation(ModuleGen.class);
+            FnModule fnModule = moduleElement.getAnnotation(FnModule.class);
+
+
+            if (this.fnModules.contains(packageName)) {
+                continue;
+            }
+
+
             List<FnImpl> fnImplElements = new ArrayList<>();
             List<? extends Element> classElements = elementUtils.getPackageOf(moduleElement).getEnclosedElements();
             for (Element classElement : classElements) {
@@ -154,30 +144,29 @@ public class FaaSCodeGenProcessor extends AbstractProcessor {
                         }
                         this.fnImpls.add(fnName);
                         FnInterceptor fnInterceptor = typeElement.getAnnotation(FnInterceptor.class);
-                        fnImplElements.add(new FnImpl((TypeElement) interfaceElement, typeElement, interfaceFn, fnInterceptor));
+                        fnImplElements.add(new FnImpl((TypeElement) interfaceElement, typeElement, fnModule, fnInterceptor));
                         List<Element> fetchFnElements;
-                        if (moduleFnMap.containsKey(moduleGen.name())) {
-                            fetchFnElements = moduleFnMap.get(moduleGen.name());
+                        if (moduleFnMap.containsKey(fnModule.name())) {
+                            fetchFnElements = moduleFnMap.get(fnModule.name());
                         } else {
                             fetchFnElements = new ArrayList<>();
                         }
                         fetchFnElements.add(interfaceElement);
-                        moduleFnMap.put(moduleGen.name(), fetchFnElements);
+                        moduleFnMap.put(fnModule.name(), fetchFnElements);
                         break;
                     }
                 }
             }
             if (!fnImplElements.isEmpty()) {
                 try {
-                    new ModuleImplGenerator(this.messager, this.elementUtils, this.filer).generate(packageName, moduleGen, fnImplElements);
+                    new ModuleImplGenerator(this.messager, this.elementUtils, this.filer).generate(packageName, fnModule, fnImplElements);
                 } catch (Throwable exception) {
-                    messager.printMessage(Diagnostic.Kind.ERROR, String.format("生成 %s:%s 模块的函数失败。", moduleGen.groupPackage(), moduleGen.name()));
+                    messager.printMessage(Diagnostic.Kind.ERROR, String.format("生成 %s 模块的函数失败。", fnModule.name()));
                     messager.printMessage(Diagnostic.Kind.ERROR, exception.getMessage());
                     throw new RuntimeException(exception);
                 }
             }
-
-
+            this.fnModules.add(packageName);
         }
 
         return moduleFnMap;

@@ -22,13 +22,14 @@ public class FnServiceImplGenerator {
 
     private final Messager messager;
 
-    public void generate(FnUnit fnUnit, Filer filer, TypeMirror typeMirror) throws Exception {
-        this.generateImplement(fnUnit, filer, typeMirror);
+    public void generate(FnImpl fnImpl, Filer filer, TypeMirror typeMirror) throws Exception {
+        this.generateImplement(fnImpl, filer, typeMirror);
     }
 
-    private void generateImplement(FnUnit fnUnit, Filer filer, TypeMirror typeMirror) throws Exception {
-        String pkg = fnUnit.getPackageName();
-        String fnClassName = fnUnit.getClassName();
+    private void generateImplement(FnImpl fnImpl, Filer filer, TypeMirror typeMirror) throws Exception {
+        String pkg = fnImpl.getPkg();
+        String fnClassPkg = fnImpl.getFnUnit().getPackageName();
+        String fnClassName = fnImpl.getFnUnit().getClassName();
         String serviceClassName = String.format("%sService", fnClassName);
         String serviceImplClassName = String.format("%sServiceImpl", fnClassName);
 
@@ -50,29 +51,28 @@ public class FnServiceImplGenerator {
                         ClassName.get("io.vertx.serviceproxy", "ServiceBinder"));
 
 
-
         // construct
         MethodSpec.Builder constructor = MethodSpec.constructorBuilder()
                 .addModifiers(Modifier.PROTECTED)
                 .addParameter(Vertx.class, "vertx")
-                .addStatement("this.fn = new $T(vertx)", ClassName.get(fnUnit.getImplTypeElement()));
+                .addStatement("this.fn = new $T(vertx)", ClassName.get(fnImpl.getFnUnit().getImplTypeElement()));
 
 
         // fn
         FieldSpec.Builder fnField = FieldSpec.builder(
-                ClassName.get(pkg, fnClassName), "fn",
+                ClassName.get(fnClassPkg, fnClassName), "fn",
                 Modifier.PRIVATE, Modifier.FINAL);
 
         // execute method
 
         StringBuilder paramsNameBuffer = new StringBuilder();
 
-        MethodSpec.Builder executeMethod = MethodSpec.methodBuilder(fnUnit.getMethodName())
+        MethodSpec.Builder executeMethod = MethodSpec.methodBuilder(fnImpl.getFnUnit().getMethodName())
                 .addModifiers(Modifier.PUBLIC)
                 .returns(TypeName.VOID);
 
         boolean parametersNeedValid = false;
-        for (VariableElement parameter : fnUnit.getParameters()) {
+        for (VariableElement parameter : fnImpl.getFnUnit().getParameters()) {
             executeMethod.addParameter(
                     ClassName.get(parameter.asType()), parameter.getSimpleName().toString()
             );
@@ -103,13 +103,13 @@ public class FnServiceImplGenerator {
                         ClassName.get("io.vertx.core", "Handler"),
                         ParameterizedTypeName.get(
                                 ClassName.get("io.vertx.core", "AsyncResult"),
-                                fnUnit.getReturnElementClass()
+                                fnImpl.getFnUnit().getReturnElementClass()
                         )),
                 "handler"
         );
 
         // valid auth
-        if (fnUnit.getFn().authentication()) {
+        if (fnImpl.getFnUnit().getFn().authentication()) {
             executeMethod.addCode("// valid auth \n");
             executeMethod.addCode("if (context.getUser() == null) { \n");
             executeMethod.addCode("\thandler.handle($T.fail()); \n", ClassName.get("org.pharosnet.vertx.faas.core.exceptions", "UnauthorizedException"));
@@ -121,14 +121,14 @@ public class FnServiceImplGenerator {
         // valid parameters
         if (parametersNeedValid) {
             StringBuilder paramsClassBuffer = new StringBuilder();
-            for (VariableElement parameter : fnUnit.getParameters()) {
+            for (VariableElement parameter : fnImpl.getFnUnit().getParameters()) {
                 String parameterClassFullName = ClassName.get(parameter.asType()).toString();
                 String parameterClassSimpleName = parameterClassFullName.substring(parameterClassFullName.lastIndexOf(".") + 1);
                 paramsClassBuffer.append(", ").append(parameterClassSimpleName).append(".class");
             }
             executeMethod.addCode("// valid parameters \n");
             String paramsValidCode = "try { \n" +
-                    "\t$T method = $T.class.getMethod(\"" + fnUnit.getMethodName() + "\" " + paramsClassBuffer.toString() + "); \n" +
+                    "\t$T method = $T.class.getMethod(\"" + fnImpl.getFnUnit().getMethodName() + "\" " + paramsClassBuffer.toString() + "); \n" +
                     "\tObject[] parameterValues = new Object[]{" + paramsNames + "}; \n" +
                     "\tboolean valid = $T.validateExecutables(method, fn, parameterValues, handler); \n" +
                     "\tif (!valid) { \n" +
@@ -141,7 +141,7 @@ public class FnServiceImplGenerator {
                     "} \n\n";
             executeMethod.addCode(paramsValidCode,
                     ClassName.get(Method.class),
-                    ClassName.get(fnUnit.getImplTypeElement()),
+                    ClassName.get(fnImpl.getFnUnit().getImplTypeElement()),
                     ClassName.get("org.pharosnet.vertx.faas.engine.validator", "Validators"),
                     ClassName.get("org.pharosnet.vertx.faas.core.exceptions", "SystemException")
             );
@@ -149,7 +149,7 @@ public class FnServiceImplGenerator {
         }
 
         // execute
-        String executeCode = "this.fn." + fnUnit.getMethodName() + "(" + paramsNames + ") \n" +
+        String executeCode = "this.fn." + fnImpl.getFnUnit().getMethodName() + "(" + paramsNames + ") \n" +
                 "\t\t.onSuccess(r -> handler.handle($T.succeededFuture(r))) \n" +
                 "\t\t.onFailure(e -> { \n" +
                 "\t\t\tlog.error(\"{} 执行错误！\", $T.class.toString(), e); \n" +
@@ -159,14 +159,14 @@ public class FnServiceImplGenerator {
         executeMethod.addCode("// execute \n");
         executeMethod.addCode(executeCode,
                 ClassName.get(Future.class),
-                ClassName.get(pkg, fnClassName),
+                ClassName.get(fnClassPkg, fnClassName),
                 ClassName.get("org.pharosnet.vertx.faas.core.exceptions", "SystemException"));
 
 
         // class
         TypeSpec typeBuilder = TypeSpec.classBuilder(serviceImplClassName)
                 .addModifiers(Modifier.PUBLIC)
-                .addSuperinterface(ClassName.get(pkg, serviceClassName))
+                .addSuperinterface(ClassName.get(fnClassPkg, serviceClassName))
                 .addField(staticLogField.build())
                 .addMethod(registerMethod.build())
                 .addMethod(constructor.build())

@@ -26,9 +26,10 @@ public class FnRouterGenerator {
     private final Elements elementUtils;
     private final Messager messager;
 
-    public void generate(FnUnit fnUnit, FnImpl fnImpl, Filer filer, TypeMirror typeMirror) throws Exception {
-        String pkg = fnUnit.getPackageName();
-        String fnClassName = fnUnit.getClassName();
+    public void generate(FnImpl fnImpl, Filer filer, TypeMirror typeMirror) throws Exception {
+        String pkg = fnImpl.getPkg();
+        String fnClassName = fnImpl.getFnUnit().getClassName();
+        String servicePkg = fnImpl.getFnUnit().getPackageName();
         String serviceClassName = String.format("%sService", fnClassName);
         String fnRouterClassName = String.format("%sRouter", fnClassName);
 
@@ -44,16 +45,16 @@ public class FnRouterGenerator {
                 .addModifiers(Modifier.PUBLIC)
                 .addParameter(Vertx.class, "vertx")
                 .addStatement("this.vertx = vertx")
-                .addStatement("this.service = $T.proxy(vertx)", ClassName.get(pkg, serviceClassName));
+                .addStatement("this.service = $T.proxy(vertx)", ClassName.get(servicePkg, serviceClassName));
 
 
         // vertx
         FieldSpec.Builder vertxField = FieldSpec.builder(
                 ClassName.get(Vertx.class), "vertx",
                 Modifier.PRIVATE, Modifier.FINAL);
-        // vertx
+        // service
         FieldSpec.Builder serviceField = FieldSpec.builder(
-                ClassName.get(pkg, serviceClassName), "service",
+                ClassName.get(servicePkg, serviceClassName), "service",
                 Modifier.PRIVATE, Modifier.FINAL);
 
         // vertx()
@@ -67,26 +68,26 @@ public class FnRouterGenerator {
                 .addModifiers(Modifier.PUBLIC)
                 .addParameter(ClassName.get("io.vertx.ext.web", "Router"), "router")
                 .returns(ClassName.VOID);
-        String path = Optional.of(fnUnit.getFn().path()).orElse("").trim();
+        String path = Optional.of(fnImpl.getFnUnit().getFn().path()).orElse("").trim();
         if (path.length() == 0) {
-            path = String.format("/%s/%s", fnUnit.getModuleName(), fnClassName);
+            path = String.format("/%s/%s", fnImpl.getFnModule().name(), fnClassName);
         }
-        buildMethod.addCode(String.format("router.%s(\"%s\")\n", fnUnit.getFn().method().toString().toLowerCase(), path));
+        buildMethod.addCode(String.format("router.%s(\"%s\")\n", fnImpl.getFnUnit().getFn().method().toString().toLowerCase(), path));
 
-        String produces = Optional.of(fnUnit.getFn().produces()).orElse("").trim().toLowerCase();
+        String produces = Optional.of(fnImpl.getFnUnit().getFn().produces()).orElse("").trim().toLowerCase();
         if (produces.length() > 0) {
             buildMethod.addCode(String.format("\t\t.produces(\"%s\")\n", produces));
             buildMethod.addCode(String.format("\t\t.handler($T.create(\"%s\"))\n", produces), ClassName.get("org.pharosnet.vertx.faas.engine.http.handler", "ResponseContentTypeHeader"));
         }
-        String consumes = Optional.of(fnUnit.getFn().consumes()).orElse("").trim().toLowerCase();
+        String consumes = Optional.of(fnImpl.getFnUnit().getFn().consumes()).orElse("").trim().toLowerCase();
         if (consumes.length() > 0) {
             buildMethod.addCode(String.format("\t\t.consumes(\"%s\")\n", consumes));
         }
-        if (fnUnit.getFn().method().equals(HttpMethod.POST) || fnUnit.getFn().method().equals(HttpMethod.PUT) || fnUnit.getFn().method().equals(HttpMethod.PATCH)) {
-            buildMethod.addCode(String.format("\t\t.handler($T.create().setBodyLimit(%d))\n", fnUnit.getFn().bodyLimit()), ClassName.get("io.vertx.ext.web.handler", "BodyHandler"));
+        if (fnImpl.getFnUnit().getFn().method().equals(HttpMethod.POST) || fnImpl.getFnUnit().getFn().method().equals(HttpMethod.PUT) || fnImpl.getFnUnit().getFn().method().equals(HttpMethod.PATCH)) {
+            buildMethod.addCode(String.format("\t\t.handler($T.create().setBodyLimit(%d))\n", fnImpl.getFnUnit().getFn().bodyLimit()), ClassName.get("io.vertx.ext.web.handler", "BodyHandler"));
         }
-        buildMethod.addCode(String.format("\t\t.handler($T.create(%d))\n", fnUnit.getFn().timeout()), ClassName.get("io.vertx.ext.web.handler", "TimeoutHandler"));
-        if (fnUnit.getFn().latency()) {
+        buildMethod.addCode(String.format("\t\t.handler($T.create(%d))\n", fnImpl.getFnUnit().getFn().timeout()), ClassName.get("io.vertx.ext.web.handler", "TimeoutHandler"));
+        if (fnImpl.getFnUnit().getFn().latency()) {
             buildMethod.addCode("\t\t.handler($T.create())\n", ClassName.get("io.vertx.ext.web.handler", "ResponseTimeHandler"));
         }
 
@@ -116,7 +117,7 @@ public class FnRouterGenerator {
         handleMethod.addStatement("$T promise = $T.promise()",
                 ParameterizedTypeName.get(
                         ClassName.get(Promise.class),
-                        fnUnit.getReturnElementClass()
+                        fnImpl.getFnUnit().getReturnElementClass()
                 ),
                 ClassName.get(Promise.class));
         handleMethod.addStatement("$T context = $T.fromRoutingContext(routingContext)",
@@ -124,7 +125,7 @@ public class FnRouterGenerator {
                 ClassName.get("org.pharosnet.vertx.faas.http.context", "FnContext"));
 
         StringBuilder paramsNameBuffer = new StringBuilder();
-        for (VariableElement parameter : fnUnit.getParameters()) {
+        for (VariableElement parameter : fnImpl.getFnUnit().getParameters()) {
             String paramName = parameter.getSimpleName().toString();
             paramsNameBuffer.append(", ").append(paramName);
 
@@ -198,7 +199,7 @@ public class FnRouterGenerator {
 
         String paramsNames = paramsNameBuffer.toString().substring(2);
         //
-        handleMethod.addStatement(String.format("this.service.%s(%s, promise)", fnUnit.getMethodName(), paramsNames));
+        handleMethod.addStatement(String.format("this.service.%s(%s, promise)", fnImpl.getFnUnit().getMethodName(), paramsNames));
         handleMethod.addCode("promise.future()\n");
         handleMethod.addCode("\t.onSuccess(r -> {\n");
         handleMethod.addCode("\t\tString result;\n");
@@ -216,10 +217,10 @@ public class FnRouterGenerator {
         handleMethod.addCode("\t\t\treturn; \n");
         handleMethod.addCode("\t\t}\n");
         handleMethod.addCode("\t\troutingContext.response()\n");
-        handleMethod.addCode(String.format("\t\t\t\t.setStatusCode(%d)\n", fnUnit.getFn().succeedStatus()));
+        handleMethod.addCode(String.format("\t\t\t\t.setStatusCode(%d)\n", fnImpl.getFnUnit().getFn().succeedStatus()));
         handleMethod.addCode("\t\t\t\t.setChunked(true)\n");
         handleMethod.addCode("\t\t\t\t.putHeader(\"x-request-id\", context.getId())");
-        if (fnUnit.getReturnElementClass().equals(TypeName.VOID)) {
+        if (fnImpl.getFnUnit().getReturnElementClass().equals(TypeName.VOID)) {
             handleMethod.addCode("; \n");
         } else {
             handleMethod.addCode("\n\t\t\t\t.write(result, \"UTF-8\");\n");

@@ -15,18 +15,29 @@ public class DatabaseClusterDeployment extends ComponentDeployment {
     }
 
     public DatabaseClusterDeployment(ServiceDiscovery discovery) {
-        super(new DatabaseMessageConsumerRegister());
-        this.discovery = discovery;
+        this(discovery, 0);
     }
 
+    public DatabaseClusterDeployment(ServiceDiscovery discovery, int workers) {
+        super();
+        this.discovery = discovery;
+        if (workers < 0) {
+            workers = CpuCoreSensor.availableProcessors() * 2;
+        }
+        this.workers = workers;
+    }
+
+    private final int workers;
     private final ServiceDiscovery discovery;
 
     @Override
     public Future<String> deploy(Vertx vertx, JsonObject config) {
         DeploymentOptions deploymentOptions = new DeploymentOptions();
-        deploymentOptions.setInstances(CpuCoreSensor.availableProcessors() * 2);
+        if (this.workers > 0) {
+            deploymentOptions.setWorker(true).setWorkerPoolSize(this.workers);
+        }
         deploymentOptions.setConfig(config);
-        return vertx.deployVerticle(new DatabaseVerticle(super.getRegister(), this.discovery), deploymentOptions);
+        return vertx.deployVerticle(new DatabaseVerticle(this.discovery), deploymentOptions);
     }
 
 }

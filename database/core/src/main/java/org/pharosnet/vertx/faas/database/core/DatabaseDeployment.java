@@ -5,31 +5,32 @@ import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.core.impl.cpu.CpuCoreSensor;
 import io.vertx.core.json.JsonObject;
-import io.vertx.servicediscovery.ServiceDiscovery;
 import org.pharosnet.vertx.faas.core.components.ComponentDeployment;
 
 public class DatabaseDeployment extends ComponentDeployment {
 
     public DatabaseDeployment() {
-        this(1);
+        this(0);
     }
 
-    public DatabaseDeployment(int instances) {
-        super(new DatabaseMessageConsumerRegister());
-        if (instances < 1) {
-            instances = CpuCoreSensor.availableProcessors() * 2;
+    public DatabaseDeployment(int workers) {
+        super();
+        if (workers < 0) {
+            workers = CpuCoreSensor.availableProcessors() * 2;
         }
-        this.instances = instances;
+        this.workers = workers;
     }
 
-    private final int instances;
+    private final int workers;
 
     @Override
     public Future<String> deploy(Vertx vertx, JsonObject config) {
         DeploymentOptions deploymentOptions = new DeploymentOptions();
-        deploymentOptions.setInstances(instances);
+        if (this.workers > 0) {
+            deploymentOptions.setWorker(true).setWorkerPoolSize(this.workers);
+        }
         deploymentOptions.setConfig(config);
-        return vertx.deployVerticle(new DatabaseVerticle(super.getRegister(), null), deploymentOptions);
+        return vertx.deployVerticle(new DatabaseVerticle(), deploymentOptions);
     }
 
 }

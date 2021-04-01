@@ -1,7 +1,6 @@
 package org.pharosnet.vertx.faas.codegen.generators;
 
 import com.squareup.javapoet.*;
-import io.vertx.codegen.annotations.ModuleGen;
 import io.vertx.codegen.format.CamelCase;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
@@ -9,6 +8,7 @@ import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonObject;
+import org.pharosnet.vertx.faas.codegen.annotation.FnModule;
 
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
@@ -31,8 +31,10 @@ public class MessageConsumerRegisterGenerator {
     private Elements elementUtils;
     private Filer filer;
 
-    public void generate(String pkg, ModuleGen moduleGen, List<FnImpl> fnImpls) throws Exception {
-        String fnMessageConsumerRegisterClassName = String.format("%sMessageConsumerRegister", CamelCase.INSTANCE.format(List.of(moduleGen.name())));
+    public void generate(String pkg, FnModule fnModule, List<FnImpl> fnImpls) throws Exception {
+        List<String> nameItems = new ArrayList<>(List.of(fnModule.name().split("-")));
+
+        String fnMessageConsumerRegisterClassName = String.format("%sMessageConsumerRegister", CamelCase.INSTANCE.format(nameItems));
 
         // consumers
         FieldSpec.Builder consumersField = FieldSpec.builder(

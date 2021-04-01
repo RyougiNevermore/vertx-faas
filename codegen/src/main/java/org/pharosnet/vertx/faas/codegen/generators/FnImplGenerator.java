@@ -2,7 +2,8 @@ package org.pharosnet.vertx.faas.codegen.generators;
 
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
-import io.vertx.codegen.annotations.ModuleGen;
+import org.pharosnet.vertx.faas.codegen.annotation.Fn;
+import org.pharosnet.vertx.faas.codegen.annotation.FnModule;
 
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
@@ -15,45 +16,41 @@ import java.util.Set;
 
 public class FnImplGenerator {
 
-    public FnImplGenerator(Messager messager, Elements elementUtils, FnImpl fnImpl, ModuleGen moduleGen) throws Exception {
+    public FnImplGenerator(Messager messager, Elements elementUtils, FnImpl fnImpl) throws Exception {
         this.elementUtils = elementUtils;
         this.messager = messager;
         this.fnImpl = fnImpl;
-        this.load(elementUtils, fnImpl, moduleGen);
+        this.load(elementUtils, fnImpl);
     }
 
     private final Elements elementUtils;
     private final Messager messager;
-    private FnUnit fnUnit;
     private TypeMirror typeMirror;
-    private FnImpl fnImpl;
+    private final FnImpl fnImpl;
 
 
-    public void load(Elements elementUtils, FnImpl fnImpl, ModuleGen moduleGen) throws Exception {
+    public void load(Elements elementUtils, FnImpl fnImpl) throws Exception {
         String pkg = elementUtils.getPackageOf(fnImpl.getTypeElement()).getQualifiedName().toString();
-        String name = fnImpl.getInterfaceTypeElement().getSimpleName().toString();
+        String name = fnImpl.getTypeElement().getSimpleName().toString();
+        fnImpl.setPkg(pkg);
+        fnImpl.setClassName(name);
         this.typeMirror = fnImpl.getTypeElement().asType();
-        this.fnUnit = new FnUnit();
-        this.fnUnit.setModuleName(moduleGen.name());
-        this.fnUnit.setFn(fnImpl.getFn());
-        this.fnUnit.setClassName(name);
-        this.fnUnit.setPackageName(pkg);
-        this.fnUnit.setImplTypeElement(fnImpl.getTypeElement());
         this.scanFnClass(fnImpl.getInterfaceTypeElement());
         this.messager.printMessage(Diagnostic.Kind.NOTE, String.format("加载到 %s.%s", pkg, name));
     }
 
-    public FnUnit generate(Filer filer) throws Exception {
+    public FnImpl generate(Filer filer) throws Exception {
         // 生成fn的 service impl
         FnServiceImplGenerator fnServiceGenerator = new FnServiceImplGenerator(this.messager);
-        fnServiceGenerator.generate(this.fnUnit, filer, this.typeMirror);
+        fnServiceGenerator.generate(this.fnImpl, filer, this.typeMirror);
         // 生成fn的 router
         FnRouterGenerator fnRouterGenerator = new FnRouterGenerator(this.elementUtils, this.messager);
-        fnRouterGenerator.generate(this.fnUnit, this.fnImpl, filer, this.typeMirror);
-        return this.fnUnit;
+        fnRouterGenerator.generate(this.fnImpl, filer, this.typeMirror);
+        return this.fnImpl;
     }
 
     private void scanFnClass(TypeElement typeElement) throws Exception {
+        FnUnit fnUnit = new FnUnit();
         ExecutableElement methodElement = null;
         List<? extends Element> elements = typeElement.getEnclosedElements();
         for (Element element : elements) {
@@ -61,7 +58,7 @@ public class FnImplGenerator {
                 continue;
             }
             if (methodElement != null) {
-                throw new Exception(String.format("%s.%s 类只能只有一个函数。", this.fnUnit.getPackageName(), this.fnUnit.getClassName()));
+                throw new Exception(String.format("%s 类只能只有一个函数。", typeElement.getSimpleName().toString()));
             }
 
             Set<Modifier> modifiers = element.getModifiers();
@@ -73,39 +70,44 @@ public class FnImplGenerator {
         }
 
         if (methodElement == null) {
-            throw new Exception(String.format("%s.%s 类只能只有一个函数。", this.fnUnit.getPackageName(), this.fnUnit.getClassName()));
+            throw new Exception(String.format("%s 类只能只有一个函数。", typeElement.getSimpleName().toString()));
         }
 
-        this.messager.printMessage(Diagnostic.Kind.NOTE, String.format("获取函数 %s.%s:%s", this.fnUnit.getPackageName(), this.fnUnit.getClassName(), methodElement.getSimpleName()));
+        this.messager.printMessage(Diagnostic.Kind.NOTE, String.format("获取函数 %s:%s", typeElement.getSimpleName().toString(), methodElement.getSimpleName()));
 
-        this.fnUnit.setMethodName(methodElement.getSimpleName().toString());
+        fnUnit.setFn(typeElement.getAnnotation(Fn.class));
+        fnUnit.setClassName(typeElement.getSimpleName().toString());
+        fnUnit.setPackageName(elementUtils.getPackageOf(typeElement).getQualifiedName().toString());
+        fnUnit.setImplTypeElement(fnImpl.getTypeElement());
+
+        fnUnit.setMethodName(methodElement.getSimpleName().toString());
 
         TypeMirror returnTypeMirror = methodElement.getReturnType();
         TypeName returnType = TypeName.get(returnTypeMirror);
 
         if (!returnType.toString().startsWith("io.vertx.core.Future")) {
-            throw new Exception(String.format("%s.%s 函数的返回值不是io.vertx.core.Future。", this.fnUnit.getPackageName(), this.fnUnit.getClassName()));
+            throw new Exception(String.format("%s 函数的返回值不是io.vertx.core.Future。", typeElement.getSimpleName().toString()));
         }
 
         ParameterizedTypeName returnParameterizedType = (ParameterizedTypeName) returnType;
-        this.fnUnit.setReturnElementClass(returnParameterizedType.typeArguments.get(0));
-        this.fnUnit.setReturnClass(returnParameterizedType);
+        fnUnit.setReturnElementClass(returnParameterizedType.typeArguments.get(0));
+        fnUnit.setReturnClass(returnParameterizedType);
 
         List<? extends VariableElement> parameters = methodElement.getParameters();
         if (parameters == null || parameters.size() == 0) {
-            throw new Exception(String.format("%s.%s 函数的参数为空。", this.fnUnit.getPackageName(), this.fnUnit.getClassName()));
+            throw new Exception(String.format("%s 函数的参数为空。", typeElement.getSimpleName().toString()));
         }
 
         for (int i = 0; i < parameters.size(); i++) {
             VariableElement parameter = parameters.get(i);
             if (i == 0) {
                 if (!TypeName.get(parameter.asType()).toString().equals("org.pharosnet.vertx.faas.http.context.FnContext")) {
-                    throw new Exception(String.format("%s.%s 函数的第一个参数不是org.pharosnet.vertx.faas.http.context.FnContext。", this.fnUnit.getPackageName(), this.fnUnit.getClassName()));
+                    throw new Exception(String.format("%s 函数的第一个参数不是org.pharosnet.vertx.faas.http.context.FnContext。", typeElement.getSimpleName().toString()));
                 }
             }
-            this.fnUnit.getParameters().add(parameter);
+            fnUnit.getParameters().add(parameter);
         }
-
+        this.fnImpl.setFnUnit(fnUnit);
     }
 
 }

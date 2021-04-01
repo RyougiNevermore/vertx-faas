@@ -209,7 +209,7 @@ public class FaaSEngine {
                                     deployments.forEach(deployment -> deploymentFutures.add(deployment.deploy(this.vertx, config)));
                                 }
                                 deploymentFutures.add(new HttpDeployment(router).deploy(this.vertx, config));
-                                return CompositeFuture.all(deploymentFutures);
+                                return CompositeFuture.join(deploymentFutures);
                             })
                             .onSuccess(compositeFuture -> {
                                 List<String> deploymentIds = compositeFuture.list();

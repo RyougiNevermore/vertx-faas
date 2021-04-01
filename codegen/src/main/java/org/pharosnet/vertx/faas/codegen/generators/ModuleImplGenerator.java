@@ -1,6 +1,6 @@
 package org.pharosnet.vertx.faas.codegen.generators;
 
-import io.vertx.codegen.annotations.ModuleGen;
+import org.pharosnet.vertx.faas.codegen.annotation.FnModule;
 
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
@@ -20,21 +20,21 @@ public class ModuleImplGenerator {
     private Filer filer;
 
 
-    public void generate(String pkg, ModuleGen moduleGen, List<FnImpl> fnImpls) throws Exception {
+    public void generate(String pkg, FnModule fnModule, List<FnImpl> fnImpls) throws Exception {
         for (FnImpl fnImpl : fnImpls) {
-            FnImplGenerator fnImplGenerator = new FnImplGenerator(this.messager, this.elementUtils, fnImpl, moduleGen);
+            FnImplGenerator fnImplGenerator = new FnImplGenerator(this.messager, this.elementUtils, fnImpl);
             fnImplGenerator.generate(this.filer);
         }
         // generate verticle
         VerticleGenerator verticleGenerator = new VerticleGenerator(this.messager, this.elementUtils, this.filer);
-        verticleGenerator.generate(pkg, moduleGen);
+        verticleGenerator.generate(pkg, fnModule);
         // generate deployment
         DeploymentGenerator deploymentGenerator = new DeploymentGenerator(this.messager, this.elementUtils, this.filer);
-        deploymentGenerator.generate(pkg, moduleGen);
+        deploymentGenerator.generate(pkg, fnModule);
 
         // generate MessageConsumerRegister
         MessageConsumerRegisterGenerator messageConsumerRegisterGenerator = new MessageConsumerRegisterGenerator(this.messager, this.elementUtils, this.filer);
-        messageConsumerRegisterGenerator.generate(pkg, moduleGen, fnImpls);
+        messageConsumerRegisterGenerator.generate(pkg, fnModule, fnImpls);
 
     }
 
