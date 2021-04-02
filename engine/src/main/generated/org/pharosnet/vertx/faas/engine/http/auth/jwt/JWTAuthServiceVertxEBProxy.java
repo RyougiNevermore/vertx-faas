@@ -14,7 +14,7 @@
 * under the License.
 */
 
-package org.pharosnet.vertx.faas.engine.http.auth;
+package org.pharosnet.vertx.faas.engine.http.auth.jwt;
 
 import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.Vertx;
@@ -32,8 +32,9 @@ import io.vertx.serviceproxy.ServiceException;
 import io.vertx.serviceproxy.ServiceExceptionMessageCodec;
 import io.vertx.serviceproxy.ProxyUtils;
 
-import org.pharosnet.vertx.faas.engine.http.auth.AuthService;
+import io.vertx.ext.auth.JWTOptions;
 import io.vertx.core.Vertx;
+import org.pharosnet.vertx.faas.engine.http.auth.jwt.JWTAuthService;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 /*
@@ -42,17 +43,17 @@ import io.vertx.core.Handler;
 */
 
 @SuppressWarnings({"unchecked", "rawtypes"})
-public class AuthServiceVertxEBProxy implements AuthService {
+public class JWTAuthServiceVertxEBProxy implements JWTAuthService {
   private Vertx _vertx;
   private String _address;
   private DeliveryOptions _options;
   private boolean closed;
 
-  public AuthServiceVertxEBProxy(Vertx vertx, String address) {
+  public JWTAuthServiceVertxEBProxy(Vertx vertx, String address) {
     this(vertx, address, null);
   }
 
-  public AuthServiceVertxEBProxy(Vertx vertx, String address, DeliveryOptions options) {
+  public JWTAuthServiceVertxEBProxy(Vertx vertx, String address, DeliveryOptions options) {
     this._vertx = vertx;
     this._address = address;
     this._options = options;
@@ -78,6 +79,44 @@ public class AuthServiceVertxEBProxy implements AuthService {
         handler.handle(Future.failedFuture(res.cause()));
       } else {
         handler.handle(Future.succeededFuture(res.result().body()));
+      }
+    });
+  }
+  @Override
+  public void generateTokenWithOptions(JsonObject claims, JWTOptions options, Handler<AsyncResult<String>> handler){
+    if (closed) {
+      handler.handle(Future.failedFuture(new IllegalStateException("Proxy is closed")));
+      return;
+    }
+    JsonObject _json = new JsonObject();
+    _json.put("claims", claims);
+    _json.put("options", options != null ? options.toJson() : null);
+
+    DeliveryOptions _deliveryOptions = (_options != null) ? new DeliveryOptions(_options) : new DeliveryOptions();
+    _deliveryOptions.addHeader("action", "generateTokenWithOptions");
+    _vertx.eventBus().<String>request(_address, _json, _deliveryOptions, res -> {
+      if (res.failed()) {
+        handler.handle(Future.failedFuture(res.cause()));
+      } else {
+        handler.handle(Future.succeededFuture(res.result().body()));
+      }
+    });
+  }
+  @Override
+  public void getJWTOptions(Handler<AsyncResult<JWTOptions>> handler){
+    if (closed) {
+      handler.handle(Future.failedFuture(new IllegalStateException("Proxy is closed")));
+      return;
+    }
+    JsonObject _json = new JsonObject();
+
+    DeliveryOptions _deliveryOptions = (_options != null) ? new DeliveryOptions(_options) : new DeliveryOptions();
+    _deliveryOptions.addHeader("action", "getJWTOptions");
+    _vertx.eventBus().<JsonObject>request(_address, _json, _deliveryOptions, res -> {
+      if (res.failed()) {
+        handler.handle(Future.failedFuture(res.cause()));
+      } else {
+        handler.handle(Future.succeededFuture(res.result().body() != null ? new io.vertx.ext.auth.JWTOptions((JsonObject)res.result().body()) : null));
       }
     });
   }

@@ -14,9 +14,9 @@
 * under the License.
 */
 
-package org.pharosnet.vertx.faas.engine.http.auth;
+package org.pharosnet.vertx.faas.engine.http.auth.jwt;
 
-import org.pharosnet.vertx.faas.engine.http.auth.AuthService;
+import org.pharosnet.vertx.faas.engine.http.auth.jwt.JWTAuthService;
 import io.vertx.core.Vertx;
 import io.vertx.core.Handler;
 import io.vertx.core.AsyncResult;
@@ -41,8 +41,9 @@ import io.vertx.serviceproxy.ServiceExceptionMessageCodec;
 import io.vertx.serviceproxy.HelperUtils;
 import io.vertx.serviceproxy.ServiceBinder;
 
-import org.pharosnet.vertx.faas.engine.http.auth.AuthService;
+import io.vertx.ext.auth.JWTOptions;
 import io.vertx.core.Vertx;
+import org.pharosnet.vertx.faas.engine.http.auth.jwt.JWTAuthService;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 /*
@@ -51,29 +52,29 @@ import io.vertx.core.Handler;
 */
 
 @SuppressWarnings({"unchecked", "rawtypes"})
-public class AuthServiceVertxProxyHandler extends ProxyHandler {
+public class JWTAuthServiceVertxProxyHandler extends ProxyHandler {
 
   public static final long DEFAULT_CONNECTION_TIMEOUT = 5 * 60; // 5 minutes 
   private final Vertx vertx;
-  private final AuthService service;
+  private final JWTAuthService service;
   private final long timerID;
   private long lastAccessed;
   private final long timeoutSeconds;
   private final boolean includeDebugInfo;
 
-  public AuthServiceVertxProxyHandler(Vertx vertx, AuthService service){
+  public JWTAuthServiceVertxProxyHandler(Vertx vertx, JWTAuthService service){
     this(vertx, service, DEFAULT_CONNECTION_TIMEOUT);
   }
 
-  public AuthServiceVertxProxyHandler(Vertx vertx, AuthService service, long timeoutInSecond){
+  public JWTAuthServiceVertxProxyHandler(Vertx vertx, JWTAuthService service, long timeoutInSecond){
     this(vertx, service, true, timeoutInSecond);
   }
 
-  public AuthServiceVertxProxyHandler(Vertx vertx, AuthService service, boolean topLevel, long timeoutInSecond){
+  public JWTAuthServiceVertxProxyHandler(Vertx vertx, JWTAuthService service, boolean topLevel, long timeoutInSecond){
     this(vertx, service, true, timeoutInSecond, false);
   }
 
-  public AuthServiceVertxProxyHandler(Vertx vertx, AuthService service, boolean topLevel, long timeoutSeconds, boolean includeDebugInfo) {
+  public JWTAuthServiceVertxProxyHandler(Vertx vertx, JWTAuthService service, boolean topLevel, long timeoutSeconds, boolean includeDebugInfo) {
       this.vertx = vertx;
       this.service = service;
       this.includeDebugInfo = includeDebugInfo;
@@ -124,6 +125,22 @@ public class AuthServiceVertxProxyHandler extends ProxyHandler {
         case "generateToken": {
           service.generateToken((io.vertx.core.json.JsonObject)json.getValue("claims"),
                         HelperUtils.createHandler(msg, includeDebugInfo));
+          break;
+        }
+        case "generateTokenWithOptions": {
+          service.generateTokenWithOptions((io.vertx.core.json.JsonObject)json.getValue("claims"),
+                        json.getJsonObject("options") != null ? new io.vertx.ext.auth.JWTOptions((JsonObject)json.getJsonObject("options")) : null,
+                        HelperUtils.createHandler(msg, includeDebugInfo));
+          break;
+        }
+        case "getJWTOptions": {
+          service.getJWTOptions(res -> {
+                        if (res.failed()) {
+                          HelperUtils.manageFailure(msg, res.cause(), includeDebugInfo);
+                        } else {
+                          msg.reply(res.result() != null ? res.result().toJson() : null);
+                        }
+                     });
           break;
         }
         default: throw new IllegalStateException("Invalid action: " + action);

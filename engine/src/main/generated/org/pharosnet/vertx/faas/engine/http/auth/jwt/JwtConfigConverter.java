@@ -36,9 +36,24 @@ public class JwtConfigConverter {
             obj.setExpirationDuration((String)member.getValue());
           }
           break;
+        case "expirationIgnored":
+          if (member.getValue() instanceof Boolean) {
+            obj.setExpirationIgnored((Boolean)member.getValue());
+          }
+          break;
         case "issuer":
           if (member.getValue() instanceof String) {
             obj.setIssuer((String)member.getValue());
+          }
+          break;
+        case "key":
+          if (member.getValue() instanceof String) {
+            obj.setKey((String)member.getValue());
+          }
+          break;
+        case "leeway":
+          if (member.getValue() instanceof Number) {
+            obj.setLeeway(((Number)member.getValue()).intValue());
           }
           break;
         case "priKey":
@@ -71,8 +86,17 @@ public class JwtConfigConverter {
     if (obj.getExpirationDuration() != null) {
       json.put("expirationDuration", obj.getExpirationDuration());
     }
+    if (obj.getExpirationIgnored() != null) {
+      json.put("expirationIgnored", obj.getExpirationIgnored());
+    }
     if (obj.getIssuer() != null) {
       json.put("issuer", obj.getIssuer());
+    }
+    if (obj.getKey() != null) {
+      json.put("key", obj.getKey());
+    }
+    if (obj.getLeeway() != null) {
+      json.put("leeway", obj.getLeeway());
     }
     if (obj.getPriKey() != null) {
       json.put("priKey", obj.getPriKey());

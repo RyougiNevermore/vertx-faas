@@ -24,12 +24,15 @@ public class JwtConfig {
     // RS256 HS256
     private String algorithm;
 
+    private String key;
     private String priKey;
     private String pubKey;
 
     private String expirationDuration;
+    private Boolean expirationIgnored;
     private String issuer;
     private List<String> audience;
+    private Integer leeway;
 
     public String getAlgorithm() {
         return algorithm;
@@ -37,6 +40,14 @@ public class JwtConfig {
 
     public void setAlgorithm(String algorithm) {
         this.algorithm = algorithm;
+    }
+
+    public String getKey() {
+        return key;
+    }
+
+    public void setKey(String key) {
+        this.key = key;
     }
 
     public String getPriKey() {
@@ -63,6 +74,14 @@ public class JwtConfig {
         this.expirationDuration = expirationDuration;
     }
 
+    public Boolean getExpirationIgnored() {
+        return expirationIgnored;
+    }
+
+    public void setExpirationIgnored(Boolean expirationIgnored) {
+        this.expirationIgnored = expirationIgnored;
+    }
+
     public String getIssuer() {
         return issuer;
     }
@@ -77,5 +96,13 @@ public class JwtConfig {
 
     public void setAudience(List<String> audience) {
         this.audience = audience;
+    }
+
+    public Integer getLeeway() {
+        return leeway;
+    }
+
+    public void setLeeway(Integer leeway) {
+        this.leeway = leeway;
     }
 }

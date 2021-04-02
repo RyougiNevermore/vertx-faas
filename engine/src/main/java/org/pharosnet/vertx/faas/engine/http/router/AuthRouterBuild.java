@@ -18,7 +18,6 @@ public class AuthRouterBuild {
         }
         AuthenticationProvider authenticationProvider = auth.create(vertx, config);
         router.route().handler(auth.handle());
-        // todo register authService
 
         if (authenticationProvider instanceof JWTAuth) {
             return JwtAuthServiceImpl.register(vertx, new JwtConfig(config.getJsonObject("auth")));
