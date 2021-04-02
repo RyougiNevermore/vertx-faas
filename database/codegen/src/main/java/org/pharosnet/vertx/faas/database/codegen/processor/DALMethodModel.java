@@ -107,7 +107,6 @@ public class DALMethodModel {
                 TypeName returnParameterTypeName = returnParameterParameterizedTypeName.typeArguments.get(0);
                 if (returnParameterTypeName instanceof ParameterizedTypeName) {
                     ParameterizedTypeName layer2 = (ParameterizedTypeName) returnParameterTypeName;
-                    System.out.println(layer2);
                     if (layer2.rawType.toString().contains("java.util.List")) {
                         this.singleReturn = false;
                         this.returnList = true;

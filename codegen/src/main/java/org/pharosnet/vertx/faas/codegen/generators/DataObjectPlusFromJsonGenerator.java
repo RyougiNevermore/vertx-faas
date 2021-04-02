@@ -34,16 +34,15 @@ public class DataObjectPlusFromJsonGenerator {
         MethodSpec.Builder fromMethod = MethodSpec.methodBuilder("fromJson")
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .addParameter(ClassName.get(JsonObject.class), "jsonObject")
-                .returns(ClassName.get(typeElement.asType()));
+                .addParameter(ClassName.get(typeElement.asType()), "value")
+                .returns(ClassName.VOID);
 
 
         fromMethod.addCode("if (jsonObject == null) {\n");
-        fromMethod.addCode("\treturn null;\n");
+        fromMethod.addCode("\treturn;\n");
         fromMethod.addCode("}\n");
         fromMethod.addCode("\n");
 
-
-        fromMethod.addCode("$T value = new $T();\n", ClassName.get(typeElement.asType()), ClassName.get(typeElement.asType()));
         for (VariableElement fieldElement : fieldElements) {
             TypeName typeName = TypeName.get(fieldElement.asType());
             if (typeName.equals(TypeName.get(String.class))) {
@@ -219,7 +218,6 @@ public class DataObjectPlusFromJsonGenerator {
                 throw new Exception("未知类型" + ClassName.get(fieldElement.asType()).toString());
             }
         }
-        fromMethod.addCode("return value;\n");
 
         return fromMethod;
     }

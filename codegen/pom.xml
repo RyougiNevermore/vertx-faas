@@ -23,7 +23,7 @@
         <dependency>
             <groupId>org.pharosnet</groupId>
             <artifactId>vertx-faas-core</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>${faas.version}</version>
         </dependency>
         <!-- jackson >>> -->
         <dependency>

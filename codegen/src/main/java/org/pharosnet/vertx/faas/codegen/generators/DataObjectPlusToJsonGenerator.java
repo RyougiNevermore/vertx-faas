@@ -35,18 +35,14 @@ public class DataObjectPlusToJsonGenerator {
         MethodSpec.Builder toMethod = MethodSpec.methodBuilder("toJson")
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .addParameter(ClassName.get(typeElement.asType()), "value")
-                .returns(ClassName.get(JsonObject.class));
+                .addParameter(ClassName.get(JsonObject.class), "jsonObject")
+                .returns(ClassName.VOID);
 
 
         toMethod.addCode("if (value == null) {\n");
-        toMethod.addCode("\treturn null;\n");
+        toMethod.addCode("\treturn;\n");
         toMethod.addCode("}\n");
         toMethod.addCode("\n");
-
-        toMethod.addCode("$T jsonObject = new $T();\n",
-                ClassName.get(JsonObject.class),
-                ClassName.get(JsonObject.class)
-        );
 
         for (VariableElement fieldElement : fieldElements) {
             toMethod.addCode(String.format("if (value.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(fieldElement.getSimpleName().toString()))));
@@ -132,7 +128,6 @@ public class DataObjectPlusToJsonGenerator {
 
         }
 
-        toMethod.addCode("return jsonObject;\n");
         return toMethod;
     }
 
