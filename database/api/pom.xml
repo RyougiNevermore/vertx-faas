@@ -18,6 +18,12 @@
 
 
     <dependencies>
+
+        <dependency>
+            <groupId>org.pharosnet</groupId>
+            <artifactId>vertx-faas-database-codegen</artifactId>
+            <version>${faas.version}</version>
+        </dependency>
         <!--   vertx >>> -->
         <dependency>
             <groupId>io.vertx</groupId>
