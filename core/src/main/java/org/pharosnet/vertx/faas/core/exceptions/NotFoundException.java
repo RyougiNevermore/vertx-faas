@@ -4,57 +4,57 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.serviceproxy.ServiceException;
 
-public class ServerException extends ServiceException {
+public class NotFoundException extends ServiceException {
 
-    private static final int code = 500;
-    private static final String message = "服务错误！";
+    private static final int code = 404;
+    private static final String message = "内容未发现！";
 
     public static <T> AsyncResult<T> fail(Throwable throwable) {
-        return Future.failedFuture(new ServerException(throwable));
+        return Future.failedFuture(new NotFoundException(throwable));
     }
 
     public static <T> AsyncResult<T> fail(String reason) {
-        return Future.failedFuture(new ServerException(reason));
+        return Future.failedFuture(new NotFoundException(reason));
     }
 
     public static <T> AsyncResult<T> fail(int statusCode, String reason) {
-        return Future.failedFuture(new ServerException(statusCode, reason));
+        return Future.failedFuture(new NotFoundException(statusCode, reason));
     }
 
 
     public static <T> AsyncResult<T> fail(String reason, Throwable throwable) {
-        return Future.failedFuture(new ServerException(reason, throwable));
+        return Future.failedFuture(new NotFoundException(reason, throwable));
     }
 
     public static <T> AsyncResult<T> fail(int statusCode, String reason, Throwable throwable) {
-        return Future.failedFuture(new ServerException(statusCode, reason, throwable));
+        return Future.failedFuture(new NotFoundException(statusCode, reason, throwable));
     }
 
-    public ServerException(Throwable throwable) {
+    public NotFoundException(Throwable throwable) {
         this(code, throwable);
     }
 
-    public ServerException(int statusCode, Throwable throwable) {
+    public NotFoundException(int statusCode, Throwable throwable) {
         super(statusCode, message);
         super.getDebugInfo().put("message", throwable.getMessage());
         super.getDebugInfo().put("cause", throwable);
     }
 
-    public ServerException(String reason) {
+    public NotFoundException(String reason) {
         this(code, reason);
     }
 
-    public ServerException(int statusCode, String reason) {
-        super(statusCode, reason);
+    public NotFoundException(int statusCode, String reason) {
+        super(statusCode, message);
         super.getDebugInfo().put("message", reason);
     }
 
-    public ServerException(String reason, Throwable throwable) {
+    public NotFoundException(String reason, Throwable throwable) {
         this(code, reason, throwable);
     }
 
-    public ServerException(int statusCode, String reason, Throwable throwable) {
-        super(statusCode, reason);
+    public NotFoundException(int statusCode, String reason, Throwable throwable) {
+        super(statusCode, message);
         super.getDebugInfo().put("message", reason);
         super.getDebugInfo().put("cause", throwable);
     }

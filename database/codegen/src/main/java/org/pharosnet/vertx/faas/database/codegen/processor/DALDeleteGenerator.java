@@ -170,7 +170,7 @@ public class DALDeleteGenerator {
             }
         }
         methodBuild.addCode(String.format("args.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(deleteBYField))));
-        methodBuild.addCode(String.format("args.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(deleteATField))));
+        methodBuild.addCode(String.format("args.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(deleteATField))));
         methodBuild.addCode(String.format("args.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(idField))));
         methodBuild.addCode(String.format("args.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(versionField))));
 
@@ -272,7 +272,7 @@ public class DALDeleteGenerator {
             }
         }
         methodBuild.addCode(String.format("\t\targ.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(deleteBYField))));
-        methodBuild.addCode(String.format("\t\targ.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(deleteATField))));
+        methodBuild.addCode(String.format("\t\targ.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(deleteATField))));
         methodBuild.addCode(String.format("\t\targ.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(idField))));
         methodBuild.addCode(String.format("\t\targ.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(versionField))));
         methodBuild.addCode("\t\treturn arg;\n");

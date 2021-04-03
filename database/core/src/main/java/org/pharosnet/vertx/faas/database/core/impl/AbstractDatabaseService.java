@@ -47,7 +47,7 @@ public class AbstractDatabaseService {
                 .compose(map -> map.get(context.getId()))
                 .onSuccess(r -> {
                     if (log.isDebugEnabled()) {
-                        log.error("get transaction hostId({}) by context({})", r, context.getId());
+                        log.debug("get transaction hostId({}) by context({})", r, context.getId());
                     }
                     if (r == null) {
                         promise.complete(Optional.empty());

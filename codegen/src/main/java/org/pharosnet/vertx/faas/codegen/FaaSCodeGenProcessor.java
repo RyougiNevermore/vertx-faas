@@ -68,7 +68,7 @@ public class FaaSCodeGenProcessor extends AbstractProcessor {
         Element oasElement = oasElements.iterator().next();
         EnableOAS enableOAS = oasElement.getAnnotation(EnableOAS.class);
         try {
-            new OASGenerator(this.messager, this.elementUtils, this.filer).generate(moduleFnMap, enableOAS);
+            new OASGenerator(this.messager, this.elementUtils, this.typeUtils, this.filer).generate(moduleFnMap, enableOAS);
         } catch (Exception exception) {
             messager.printMessage(Diagnostic.Kind.ERROR, "生成 OpenAPI 失败。");
             messager.printMessage(Diagnostic.Kind.ERROR, exception.getMessage());

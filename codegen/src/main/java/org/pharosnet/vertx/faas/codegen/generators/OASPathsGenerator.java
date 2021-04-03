@@ -13,26 +13,31 @@ import io.swagger.v3.oas.models.responses.ApiResponses;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.vertx.codegen.format.CamelCase;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import org.pharosnet.vertx.faas.codegen.annotation.*;
-import org.pharosnet.vertx.faas.codegen.annotation.oas.ApiModel;
-import org.pharosnet.vertx.faas.codegen.annotation.oas.ApiModelProperty;
 import org.pharosnet.vertx.faas.codegen.http.HttpMethod;
 
 import javax.lang.model.element.*;
 import javax.lang.model.util.Elements;
-import java.math.BigDecimal;
+import javax.lang.model.util.Types;
 import java.time.*;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class OASPathsGenerator {
 
-    public OASPathsGenerator(Elements elementUtils) {
+    public OASPathsGenerator(Elements elementUtils, Types typeUtils) {
         this.elementUtils = elementUtils;
+        this.typeUtils = typeUtils;
         this.componentGenerator = new OASComponentGenerator(elementUtils);
     }
 
     private Elements elementUtils;
+    private Types typeUtils;
+
     private OASComponentGenerator componentGenerator;
 
 
@@ -207,7 +212,11 @@ public class OASPathsGenerator {
                 // request body
                 RequestBody requestBody = fnParam.getAnnotation(RequestBody.class);
                 if (requestBody != null) {
-                    TypeElement requestBodyType = (TypeElement) fnParam.asType();
+                    Element requestBodyElement = this.typeUtils.asElement(fnParam.asType());
+                    if (!(requestBodyElement instanceof TypeElement)) {
+                        throw new Exception("@RequestBody 必须是TypeElement");
+                    }
+                    TypeElement requestBodyType = (TypeElement) requestBodyElement;
 
                     String requestBodySchemaName = this.componentGenerator.generate(requestBodyType);
 
@@ -300,9 +309,6 @@ public class OASPathsGenerator {
 
         return operation;
     }
-
-
-
 
 
 }

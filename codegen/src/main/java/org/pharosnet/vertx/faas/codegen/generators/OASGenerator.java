@@ -20,6 +20,7 @@ import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import javax.tools.FileObject;
 import javax.tools.StandardLocation;
@@ -31,14 +32,16 @@ import java.util.Map;
 
 public class OASGenerator {
 
-    public OASGenerator(Messager messager, Elements elementUtils, Filer filer) {
+    public OASGenerator(Messager messager, Elements elementUtils, Types typeUtils, Filer filer) {
         this.messager = messager;
         this.elementUtils = elementUtils;
+        this.typeUtils = typeUtils;
         this.filer = filer;
     }
 
     private Messager messager;
     private Elements elementUtils;
+    private Types typeUtils;
     private Filer filer;
 
 
@@ -123,7 +126,7 @@ public class OASGenerator {
         openAPI.servers(servers);
 
         // paths
-        OASPathsGenerator pathsGenerator = new OASPathsGenerator(this.elementUtils);
+        OASPathsGenerator pathsGenerator = new OASPathsGenerator(this.elementUtils, this.typeUtils);
         openAPI.setPaths(pathsGenerator.generate(moduleFnMap));
 
         // components
