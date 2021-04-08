@@ -4,7 +4,6 @@ import com.squareup.javapoet.*;
 import io.vertx.codegen.format.CamelCase;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import org.pharosnet.vertx.faas.database.codegen.DatabaseType;
 
@@ -111,11 +110,13 @@ public class DALDeleteForceGenerator {
                 break;
             }
         }
-        methodBuild.addCode(String.format("args.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(idField))));
+        methodBuild.addCode(String.format("args.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(idField))),
+                ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+        );
 
         methodBuild
                 .addCode("$T arg = new $T();\n", ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg"), ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg"))
-                .addCode("arg.setQuery("+this.sqlName+");\n")
+                .addCode("arg.setQuery(" + this.sqlName + ");\n")
                 .addCode("arg.setArgs(args);\n")
                 .addCode("arg.setBatch(false);\n")
                 .addCode("arg.setSlaverMode(false);\n")
@@ -197,14 +198,16 @@ public class DALDeleteForceGenerator {
 
         methodBuild.addCode("\trows.map(row -> {\n");
         methodBuild.addCode("\t\tJsonArray arg = new JsonArray();\n");
-        methodBuild.addCode(String.format("\t\targ.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(idField))));
+        methodBuild.addCode(String.format("\t\targ.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(idField))),
+                ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+        );
         methodBuild.addCode("\t\treturn arg;\n");
         methodBuild.addCode("\t}).collect(Collectors.toList()));\n");
         methodBuild.addCode("\t\n");
 
         methodBuild
                 .addCode("$T arg = new $T();\n", ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg"), ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg"))
-                .addCode("arg.setQuery("+this.sqlName+");\n")
+                .addCode("arg.setQuery(" + this.sqlName + ");\n")
                 .addCode("arg.setArgs(args);\n")
                 .addCode("arg.setBatch(true);\n")
                 .addCode("arg.setSlaverMode(false);\n")

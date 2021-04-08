@@ -136,14 +136,14 @@ public class FnServiceImplGenerator {
                     "\t} \n" +
                     "} catch (Exception e) { \n" +
                     "\tlog.error(\"参数校验失败！\", e); \n" +
-                    "\thandler.handle($T.fail(e)); \n" +
+                    "\thandler.handle($T.failedFuture(e)); \n" +
                     "\treturn; \n" +
                     "} \n\n";
             executeMethod.addCode(paramsValidCode,
                     ClassName.get(Method.class),
                     ClassName.get(fnImpl.getFnUnit().getImplTypeElement()),
                     ClassName.get("org.pharosnet.vertx.faas.engine.validator", "Validators"),
-                    ClassName.get("org.pharosnet.vertx.faas.core.exceptions", "SystemException")
+                    ClassName.get(Future.class)
             );
 
         }
@@ -152,15 +152,14 @@ public class FnServiceImplGenerator {
         String executeCode = "this.fn." + fnImpl.getFnUnit().getMethodName() + "(" + paramsNames + ") \n" +
                 "\t\t.onSuccess(r -> handler.handle($T.succeededFuture(r))) \n" +
                 "\t\t.onFailure(e -> { \n" +
-                "\t\t\tlog.error(\"{} 执行错误！\", $T.class.toString(), e); \n" +
-                "\t\t\thandler.handle($T.fail(e)); \n" +
+                "\t\t\thandler.handle($T.failedFuture(e));\n" +
                 "\t\t});\n\n";
 
         executeMethod.addCode("// execute \n");
         executeMethod.addCode(executeCode,
                 ClassName.get(Future.class),
-                ClassName.get(fnClassPkg, fnClassName),
-                ClassName.get("org.pharosnet.vertx.faas.core.exceptions", "SystemException"));
+                ClassName.get(Future.class)
+        );
 
 
         // class

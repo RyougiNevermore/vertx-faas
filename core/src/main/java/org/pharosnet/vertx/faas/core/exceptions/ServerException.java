@@ -45,8 +45,8 @@ public class ServerException extends ServiceException {
     }
 
     public ServerException(int statusCode, String reason) {
-        super(statusCode, reason);
-        super.getDebugInfo().put("message", reason);
+        super(statusCode, message);
+        super.getDebugInfo().put("reason", reason);
     }
 
     public ServerException(String reason, Throwable throwable) {
@@ -54,8 +54,8 @@ public class ServerException extends ServiceException {
     }
 
     public ServerException(int statusCode, String reason, Throwable throwable) {
-        super(statusCode, reason);
-        super.getDebugInfo().put("message", reason);
+        super(statusCode, message);
+        super.getDebugInfo().put("reason", reason);
         super.getDebugInfo().put("cause", throwable);
     }
 

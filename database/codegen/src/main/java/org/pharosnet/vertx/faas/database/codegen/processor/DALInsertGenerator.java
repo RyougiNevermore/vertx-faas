@@ -8,7 +8,6 @@ import io.vertx.core.json.JsonArray;
 import org.pharosnet.vertx.faas.database.codegen.DatabaseType;
 
 import javax.lang.model.element.Modifier;
-import java.time.*;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -96,39 +95,9 @@ public class DALInsertGenerator {
         );
 
         for (ColumnModel columnModel : dalModel.getTableModel().getColumnModels()) {
-            if (columnModel.getClassName().equals(TypeName.get(LocalDateTime.class))) {
-                methodBuild.addCode(String.format("if (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\targs.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("} else {\n");
-                methodBuild.addCode("\targs.add(null);\n");
-                methodBuild.addCode("}\n");
-            } else if (columnModel.getClassName().equals(TypeName.get(LocalDate.class))) {
-                methodBuild.addCode(String.format("if (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\targs.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("} else {\n");
-                methodBuild.addCode("\targs.add(null);\n");
-                methodBuild.addCode("}\n");
-            } else if (columnModel.getClassName().equals(TypeName.get(OffsetDateTime.class))) {
-                methodBuild.addCode(String.format("if (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\targs.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("} else {\n");
-                methodBuild.addCode("\targs.add(null);\n");
-                methodBuild.addCode("}\n");
-            } else if (columnModel.getClassName().equals(TypeName.get(ZonedDateTime.class))) {
-                methodBuild.addCode(String.format("if (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\targs.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("} else {\n");
-                methodBuild.addCode("\targs.add(null);\n");
-                methodBuild.addCode("}\n");
-            } else if (columnModel.getClassName().equals(TypeName.get(Duration.class))) {
-                methodBuild.addCode(String.format("if (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\targs.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("} else {\n");
-                methodBuild.addCode("\targs.add(null);\n");
-                methodBuild.addCode("}\n");
-            } else {
-                methodBuild.addCode(String.format("args.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-            }
+            methodBuild.addCode(String.format("args.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))),
+                    ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+            );
         }
         methodBuild
                 .addCode("$T arg = new $T();\n", ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg"), ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg"))
@@ -204,39 +173,9 @@ public class DALInsertGenerator {
         methodBuild.addCode("\trows.map(row -> {\n");
         methodBuild.addCode("\t\tJsonArray arg = new JsonArray();\n");
         for (ColumnModel columnModel : dalModel.getTableModel().getColumnModels()) {
-            if (columnModel.getClassName().equals(TypeName.get(LocalDateTime.class))) {
-                methodBuild.addCode(String.format("\t\tif (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\t\t\targ.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("\t\t} else {\n");
-                methodBuild.addCode("\t\t\targ.add(null);\n");
-                methodBuild.addCode("\t\t}\n");
-            } else if (columnModel.getClassName().equals(TypeName.get(LocalDate.class))) {
-                methodBuild.addCode(String.format("\t\tif (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\t\t\targ.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("\t\t} else {\n");
-                methodBuild.addCode("\t\t\targ.add(null);\n");
-                methodBuild.addCode("\t\t}\n");
-            } else if (columnModel.getClassName().equals(TypeName.get(OffsetDateTime.class))) {
-                methodBuild.addCode(String.format("\t\tif (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\t\t\targ.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("\t\t} else {\n");
-                methodBuild.addCode("\t\t\targ.add(null);\n");
-                methodBuild.addCode("\t\t}\n");
-            } else if (columnModel.getClassName().equals(TypeName.get(ZonedDateTime.class))) {
-                methodBuild.addCode(String.format("\t\tif (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\t\t\targ.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("\t\t} else {\n");
-                methodBuild.addCode("\t\t\targ.add(null);\n");
-                methodBuild.addCode("\t\t}\n");
-            } else if (columnModel.getClassName().equals(TypeName.get(Duration.class))) {
-                methodBuild.addCode(String.format("\t\tif (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\t\t\targ.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("\t\t} else {\n");
-                methodBuild.addCode("\t\t\targ.add(null);\n");
-                methodBuild.addCode("\t\t}\n");
-            } else {
-                methodBuild.addCode(String.format("\t\targ.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-            }
+            methodBuild.addCode(String.format("\t\targ.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))),
+                    ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+            );
         }
         methodBuild.addCode("\t\treturn arg;\n");
         methodBuild.addCode("\t}).collect($T.toList()));\n", ClassName.get(Collectors.class));

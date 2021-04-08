@@ -4,13 +4,10 @@ import com.squareup.javapoet.*;
 import io.vertx.codegen.format.CamelCase;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
-import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
-import io.vertx.core.json.JsonObject;
 import org.pharosnet.vertx.faas.database.codegen.DatabaseType;
 
 import javax.lang.model.element.Modifier;
-import java.time.*;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -111,15 +108,15 @@ public class DALUpdateGenerator {
         methodBuild.addCode("}\n");
 
         methodBuild.addStatement("$T promise = $T.promise()",
+                ParameterizedTypeName.get(
+                        ClassName.get(Promise.class),
                         ParameterizedTypeName.get(
-                                ClassName.get(Promise.class),
-                                ParameterizedTypeName.get(
-                                        ClassName.get(Optional.class),
-                                        dalModel.getTableClassName()
-                                )
-                        ),
-                        ClassName.get(Promise.class)
-                );
+                                ClassName.get(Optional.class),
+                                dalModel.getTableClassName()
+                        )
+                ),
+                ClassName.get(Promise.class)
+        );
 
         methodBuild.addCode("$T args = new $T();\n",
                 ClassName.get(JsonArray.class),
@@ -137,45 +134,19 @@ public class DALUpdateGenerator {
                 versionField = columnModel.getFieldName();
                 continue;
             }
-            if (columnModel.getClassName().equals(TypeName.get(LocalDateTime.class))) {
-                methodBuild.addCode(String.format("if (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\targs.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("} else {\n");
-                methodBuild.addCode("\targs.add(null);\n");
-                methodBuild.addCode("}\n");
-            } else if (columnModel.getClassName().equals(TypeName.get(LocalDate.class))) {
-                methodBuild.addCode(String.format("if (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\targs.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("} else {\n");
-                methodBuild.addCode("\targs.add(null);\n");
-                methodBuild.addCode("}\n");
-            } else if (columnModel.getClassName().equals(TypeName.get(OffsetDateTime.class))) {
-                methodBuild.addCode(String.format("if (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\targs.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("} else {\n");
-                methodBuild.addCode("\targs.add(null);\n");
-                methodBuild.addCode("}\n");
-            } else if (columnModel.getClassName().equals(TypeName.get(ZonedDateTime.class))) {
-                methodBuild.addCode(String.format("if (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\targs.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("} else {\n");
-                methodBuild.addCode("\targs.add(null);\n");
-                methodBuild.addCode("}\n");
-            } else if (columnModel.getClassName().equals(TypeName.get(Duration.class))) {
-                methodBuild.addCode(String.format("if (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\targs.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("} else {\n");
-                methodBuild.addCode("\targs.add(null);\n");
-                methodBuild.addCode("}\n");
-            } else {
-                methodBuild.addCode(String.format("args.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-            }
+            methodBuild.addCode(String.format("args.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))),
+                    ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+            );
         }
         if (!idField.isBlank()) {
-            methodBuild.addCode(String.format("args.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(idField))));
+            methodBuild.addCode(String.format("args.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(idField))),
+                    ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+            );
         }
         if (!versionField.isBlank()) {
-            methodBuild.addCode(String.format("args.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(versionField))));
+            methodBuild.addCode(String.format("args.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(versionField))),
+                    ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+            );
         }
 
         methodBuild
@@ -232,18 +203,18 @@ public class DALUpdateGenerator {
         methodBuild.addCode("}\n");
 
         methodBuild.addStatement("$T promise = $T.promise()",
+                ParameterizedTypeName.get(
+                        ClassName.get(Promise.class),
                         ParameterizedTypeName.get(
-                                ClassName.get(Promise.class),
+                                ClassName.get(Optional.class),
                                 ParameterizedTypeName.get(
-                                        ClassName.get(Optional.class),
-                                        ParameterizedTypeName.get(
-                                                ClassName.get(Stream.class),
-                                                dalModel.getTableClassName()
-                                        )
+                                        ClassName.get(Stream.class),
+                                        dalModel.getTableClassName()
                                 )
-                        ),
-                        ClassName.get(Promise.class)
-                );
+                        )
+                ),
+                ClassName.get(Promise.class)
+        );
 
         methodBuild.addCode("$T args = new $T(\n",
                 ClassName.get(JsonArray.class),
@@ -263,45 +234,20 @@ public class DALUpdateGenerator {
                 versionField = columnModel.getFieldName();
                 continue;
             }
-            if (columnModel.getClassName().equals(TypeName.get(LocalDateTime.class))) {
-                methodBuild.addCode(String.format("\t\tif (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\t\t\targ.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("\t\t} else {\n");
-                methodBuild.addCode("\t\t\targ.add(null);\n");
-                methodBuild.addCode("\t\t}\n");
-            } else if (columnModel.getClassName().equals(TypeName.get(LocalDate.class))) {
-                methodBuild.addCode(String.format("\t\tif (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\t\t\targ.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("\t\t} else {\n");
-                methodBuild.addCode("\t\t\targ.add(null);\n");
-                methodBuild.addCode("\t\t}\n");
-            } else if (columnModel.getClassName().equals(TypeName.get(OffsetDateTime.class))) {
-                methodBuild.addCode(String.format("\t\tif (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\t\t\targ.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("\t\t} else {\n");
-                methodBuild.addCode("\t\t\targ.add(null);\n");
-                methodBuild.addCode("\t\t}\n");
-            } else if (columnModel.getClassName().equals(TypeName.get(ZonedDateTime.class))) {
-                methodBuild.addCode(String.format("\t\tif (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\t\t\targ.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("\t\t} else {\n");
-                methodBuild.addCode("\t\t\targ.add(null);\n");
-                methodBuild.addCode("\t\t}\n");
-            } else if (columnModel.getClassName().equals(TypeName.get(Duration.class))) {
-                methodBuild.addCode(String.format("\t\tif (row.get%s() != null) {\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode(String.format("\t\t\targ.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-                methodBuild.addCode("\t\t} else {\n");
-                methodBuild.addCode("\t\t\targ.add(null);\n");
-                methodBuild.addCode("\t\t}\n");
-            } else {
-                methodBuild.addCode(String.format("\t\targ.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))));
-            }
+            methodBuild.addCode(String.format("\t\targ.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(columnModel.getFieldName()))),
+                    ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+            );
+
         }
         if (!idField.isBlank()) {
-            methodBuild.addCode(String.format("\t\targ.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(idField))));
+            methodBuild.addCode(String.format("\t\targ.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(idField))),
+                    ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+            );
         }
         if (!versionField.isBlank()) {
-            methodBuild.addCode(String.format("\t\targ.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(versionField))));
+            methodBuild.addCode(String.format("\t\targ.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(versionField))),
+                    ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+            );
         }
         methodBuild.addCode("\t\treturn arg;\n");
         methodBuild.addCode("\t}).collect($T.toList()));\n", ClassName.get(Collectors.class));

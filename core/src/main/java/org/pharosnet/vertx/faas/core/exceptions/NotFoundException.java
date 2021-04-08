@@ -36,7 +36,7 @@ public class NotFoundException extends ServiceException {
 
     public NotFoundException(int statusCode, Throwable throwable) {
         super(statusCode, message);
-        super.getDebugInfo().put("message", throwable.getMessage());
+        super.getDebugInfo().put("reason", throwable.getMessage());
         super.getDebugInfo().put("cause", throwable);
     }
 
@@ -46,7 +46,7 @@ public class NotFoundException extends ServiceException {
 
     public NotFoundException(int statusCode, String reason) {
         super(statusCode, message);
-        super.getDebugInfo().put("message", reason);
+        super.getDebugInfo().put("reason", reason);
     }
 
     public NotFoundException(String reason, Throwable throwable) {
@@ -55,7 +55,7 @@ public class NotFoundException extends ServiceException {
 
     public NotFoundException(int statusCode, String reason, Throwable throwable) {
         super(statusCode, message);
-        super.getDebugInfo().put("message", reason);
+        super.getDebugInfo().put("reason", reason);
         super.getDebugInfo().put("cause", throwable);
     }
 

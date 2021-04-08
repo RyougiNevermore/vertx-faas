@@ -93,7 +93,9 @@ public class DALGetGenerator {
                 ClassName.get(JsonArray.class)
         );
 
-        methodBuild.addCode("args.add(id);\n");
+        methodBuild.addCode("args.add($T.mapArg(id));\n",
+                ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+        );
 
 
         methodBuild

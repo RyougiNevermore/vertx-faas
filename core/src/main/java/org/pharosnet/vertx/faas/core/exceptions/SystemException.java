@@ -15,7 +15,7 @@ public class SystemException extends ServiceException {
 
     public SystemException(Throwable throwable) {
         super(code, message);
-        super.getDebugInfo().put("message", throwable.getMessage());
+        super.getDebugInfo().put("reason", throwable.getMessage());
         super.getDebugInfo().put("cause", throwable);
     }
 

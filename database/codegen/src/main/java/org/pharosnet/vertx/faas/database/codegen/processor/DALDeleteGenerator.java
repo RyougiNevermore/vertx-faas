@@ -169,10 +169,18 @@ public class DALDeleteGenerator {
                 deleteATField = columnModel.getFieldName();
             }
         }
-        methodBuild.addCode(String.format("args.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(deleteBYField))));
-        methodBuild.addCode(String.format("args.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(deleteATField))));
-        methodBuild.addCode(String.format("args.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(idField))));
-        methodBuild.addCode(String.format("args.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(versionField))));
+        methodBuild.addCode(String.format("args.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(deleteBYField))),
+                ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+        );
+        methodBuild.addCode(String.format("args.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(deleteATField))),
+                ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+        );
+        methodBuild.addCode(String.format("args.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(idField))),
+                ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+        );
+        methodBuild.addCode(String.format("args.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(versionField))),
+                ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+        );
 
         methodBuild
                 .addCode("$T arg = new $T();\n", ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg"), ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg"))
@@ -271,10 +279,18 @@ public class DALDeleteGenerator {
                 deleteATField = columnModel.getFieldName();
             }
         }
-        methodBuild.addCode(String.format("\t\targ.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(deleteBYField))));
-        methodBuild.addCode(String.format("\t\targ.add(row.get%s().toString());\n", CamelCase.INSTANCE.format(List.of(deleteATField))));
-        methodBuild.addCode(String.format("\t\targ.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(idField))));
-        methodBuild.addCode(String.format("\t\targ.add(row.get%s());\n", CamelCase.INSTANCE.format(List.of(versionField))));
+        methodBuild.addCode(String.format("\t\targ.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(deleteBYField))),
+                ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+        );
+        methodBuild.addCode(String.format("\t\targ.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(deleteATField))),
+                ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+        );
+        methodBuild.addCode(String.format("\t\targ.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(idField))),
+                ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+        );
+        methodBuild.addCode(String.format("\t\targ.add($T.mapArg(row.get%s()));\n", CamelCase.INSTANCE.format(List.of(versionField))),
+                ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+        );
         methodBuild.addCode("\t\treturn arg;\n");
         methodBuild.addCode("\t}).collect(Collectors.toList()));\n");
         methodBuild.addCode("\t\n");

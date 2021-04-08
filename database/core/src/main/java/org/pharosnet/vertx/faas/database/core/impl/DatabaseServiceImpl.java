@@ -8,12 +8,14 @@ import io.vertx.mysqlclient.MySQLClient;
 import io.vertx.serviceproxy.ServiceBinder;
 import io.vertx.serviceproxy.ServiceException;
 import io.vertx.sqlclient.*;
+import io.vertx.sqlclient.impl.Utils;
 import org.pharosnet.vertx.faas.database.api.*;
 import org.pharosnet.vertx.faas.database.core.CachedTransaction;
 import org.pharosnet.vertx.faas.database.core.commons.Latency;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -304,9 +306,6 @@ public class DatabaseServiceImpl extends AbstractDatabaseService implements Data
                 })
                 .onSuccess(result -> {
                     handler.handle(Future.succeededFuture(result));
-                    if (log.isDebugEnabled()) {
-                        log.debug("database service query succeed, latency = {}ms, context = {}, arg = \n{}", result.getLatency(), context.getId(), arg);
-                    }
                 })
                 .onFailure(e -> {
                     log.error("database service query failed with context({}), arg = {}", context.getId(), arg.toJson().encode(), e);
@@ -321,7 +320,6 @@ public class DatabaseServiceImpl extends AbstractDatabaseService implements Data
                 });
     }
 
-    @SuppressWarnings("unchecked")
     private void executeQuery(SqlContext context, PreparedQuery<RowSet<Row>> preparedQuery, QueryArg arg, Handler<AsyncResult<QueryResult>> handler) {
         Latency latency = new Latency();
         latency.start();
@@ -331,14 +329,10 @@ public class DatabaseServiceImpl extends AbstractDatabaseService implements Data
         Future<RowSet<Row>> queryFuture;
         if (args != null && !args.isEmpty()) {
             if (batch) {
-                List<Tuple> tuples = new ArrayList<>();
-                for (int i = 0; i < args.size(); i++) {
-                    JsonArray line = args.getJsonArray(i);
-                    tuples.add(Tuple.from(line.getList()));
-                }
+                List<Tuple> tuples = arg.toSQLBatchArg();
                 queryFuture = preparedQuery.executeBatch(tuples);
             } else {
-                Tuple tuple = Tuple.from(args.getList());
+                Tuple tuple = arg.toSQLArg();
                 queryFuture = preparedQuery.execute(tuple);
             }
         } else {
@@ -363,15 +357,43 @@ public class DatabaseServiceImpl extends AbstractDatabaseService implements Data
             result.setAffected(rows.rowCount());
             List<JsonObject> array = new ArrayList<>();
             for (Row row : rows) {
-                array.add(row.toJson());
+                array.add(rowToJson(row));
             }
             result.setRows(array);
             result.setLatency(latency.end().value());
             handler.handle(Future.succeededFuture(result));
             if (log.isDebugEnabled()) {
-                log.debug("database service query succeed, latency = {}ms, context = {}, arg = \n{}", result.getLatency(), context.getId(), arg);
+                log.debug("database service query succeed, latency = {}ms, count = {}, affected = {}, context = {}, arg = \n{}",
+                        result.getLatency(), rows.size(), rows.rowCount(), context.getId(), arg);
             }
         });
+    }
+
+    private JsonObject rowToJson(Row row) {
+        JsonObject json = new JsonObject();
+        int size = row.size();
+        for (int pos = 0; pos < size; pos++) {
+            String name = row.getColumnName(pos);
+            Object value = row.getValue(pos);
+            if (value == null) {
+                json.put(name, null);
+                continue;
+            }
+            if (value instanceof LocalDate) {
+                json.put(name, value.toString());
+            } else if (value instanceof LocalDateTime) {
+                json.put(name, value.toString());
+            } else if (value instanceof LocalTime) {
+                json.put(name, value.toString());
+            } else if (value instanceof OffsetDateTime) {
+                json.put(name, value.toString());
+            } else if (value instanceof OffsetTime) {
+                json.put(name, value.toString());
+            } else {
+                json.put(name, Utils.toJson(value));
+            }
+        }
+        return json;
     }
 
 }

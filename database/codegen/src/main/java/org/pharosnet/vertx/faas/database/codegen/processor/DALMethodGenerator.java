@@ -50,12 +50,16 @@ public class DALMethodGenerator {
             methodBuild.addCode(code.toString());
         }
 
-        methodBuild.addCode("$T args = new $T();\n",
-                ClassName.get(JsonArray.class),
-                ClassName.get(JsonArray.class)
-        );
-        for (String argTypeName : model.getParamArgNames()) {
-            methodBuild.addCode(String.format("args.add(%s);\n", argTypeName));
+        if (model.getParamArgNames() != null && !model.getParamArgNames().isEmpty()) {
+            methodBuild.addCode("$T args = new $T();\n",
+                    ClassName.get(JsonArray.class),
+                    ClassName.get(JsonArray.class)
+            );
+            for (String argTypeName : model.getParamArgNames()) {
+                methodBuild.addCode(String.format("args.add($T.mapArg(%s));\n", argTypeName),
+                        ClassName.get("org.pharosnet.vertx.faas.database.api", "QueryArg")
+                );
+            }
         }
 
 
@@ -68,7 +72,9 @@ public class DALMethodGenerator {
         } else {
             methodBuild.addCode(String.format("arg.setQuery(%s);\n", model.getSqlFieldName()));
         }
-        methodBuild.addCode("arg.setArgs(args);\n");
+        if (model.getParamArgNames() != null && !model.getParamArgNames().isEmpty()) {
+            methodBuild.addCode("arg.setArgs(args);\n");
+        }
         methodBuild.addCode("arg.setBatch(false);\n\n");
         if (model.getQuery().slaverMode()) {
             methodBuild.addCode("arg.setSlaverMode(true);\n");
