@@ -1,5 +1,8 @@
 # vertx-faas
 
+重构：
+基于vertx的风格重构模块结构。
+
 todo list
 
 database:
@@ -10,10 +13,18 @@ core中不再存tx-host缓存。直接用context中的hostId。
 
 cachedTransaction 改为async，使用vertx的代理executor。
 
+
+codegen：
+重构，使用vertx的codegen方案，such as service proxy的用法。
+dataObject，见demo中的用法。增加时间的支持。
+
 tx fn:
 增加 tx interceptor，
 
 interceptor：
+使用vertx的ServiceAuthInterceptor，在ServiceBinder掉addInterceptor
+
+
 class base；
 
 proxy：
