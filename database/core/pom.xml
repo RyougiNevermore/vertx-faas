@@ -47,6 +47,7 @@
   </dependencies>
 
   <build>
+    <sourceDirectory>${project.basedir}/src</sourceDirectory>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -106,6 +107,7 @@
         <version>3.1.0</version>
       </plugin>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.8.1</version>
         <configuration>

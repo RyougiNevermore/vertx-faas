@@ -64,6 +64,7 @@ public class DatabaseNode {
     }
 
     private void createMysql(Vertx vertx, NodeConfig config) {
+        MySQLNode mySQLNode = new MySQLNode();
         MySQLConnectOptions connectOptions = new MySQLConnectOptions()
                 .setPort(config.getPort())
                 .setHost(config.getHost())
